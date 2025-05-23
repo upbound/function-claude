@@ -1,17 +1,30 @@
 apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:
-  name: function-template-go
+  name: compose-an-app-with-claude
 spec:
   compositeTypeRef:
     apiVersion: example.crossplane.io/v1
-    kind: XR
+    kind: App
   mode: Pipeline
   pipeline:
-  - step: run-the-template
+  - step: make-claude-do-it
     functionRef:
-      name: function-template-go
+      name: function-claude
     input:
-      apiVersion: template.fn.crossplane.io/v1beta1
-      kind: Input
-      example: "Hello world"
+      apiVersion: claude.fn.crossplane.io/v1beta1
+      kind: Prompt
+      prompt: |
+        Use the resource in the <composite> tag to template a Deployment.
+        Use the value at JSON path .spec.replicas to set the Deployment's
+        replicas. Use the value at JSON path .spec.image to set its
+        container image.
+
+        Create a Service that exposes the Deployment's port 8080.
+    credentials:
+    - name: claude
+      source: Secret
+      secretRef:
+        namespace: crossplane-system
+        name: claude
+

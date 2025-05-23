@@ -3,23 +3,23 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.14.0
-  name: inputs.template.fn.crossplane.io
+    controller-gen.kubebuilder.io/version: v0.16.0
+  name: prompts.claude.fn.crossplane.io
 spec:
-  group: template.fn.crossplane.io
+  group: claude.fn.crossplane.io
   names:
     categories:
     - crossplane
-    kind: Input
-    listKind: InputList
-    plural: inputs
-    singular: input
+    kind: Prompt
+    listKind: PromptList
+    plural: prompts
+    singular: prompt
   scope: Namespaced
   versions:
   - name: v1beta1
     schema:
       openAPIV3Schema:
-        description: Input can be used to provide input to this Function.
+        description: Prompt can be used to provide input to this Function.
         properties:
           apiVersion:
             description: |-
@@ -29,8 +29,7 @@ spec:
               More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
             type: string
           example:
-            description: Example is an example field. Replace it with whatever input
-              you need. :)
+            description: Prompt to send to Claude.
             type: string
           kind:
             description: |-
