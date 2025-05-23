@@ -188,7 +188,6 @@ func (f *Function) RunFunction(ctx context.Context, req *fnv1.RunFunctionRequest
 		return rsp, nil
 	}
 
-	log.Debug("Using API key", "key", key)
 	log.Debug("Using prompt", "prompt", prompt.String())
 
 	client := anthropic.NewClient(option.WithAPIKey(key))
