@@ -36,23 +36,6 @@ resource and any existing composed resources.
 `
 
 const prompt = `
-Here is the composite resource you'll be working with:
-
-<composite>
-{{ .Composite }}
-</composite>
-
-If there are any existing composed resources, they will be provided here:
-
-<composed>
-{{ .Composed }}
-</composed>
-
-Additional input is provided here:
-
-<input>
-{{ .Input }}
-</input>
 
 Please follow these instructions carefully:
 
@@ -107,6 +90,26 @@ spec:
 </example>
 `
 
+const vars = `
+Here is the composite resource you'll be working with:
+
+<composite>
+{{ .Composite }}
+</composite>
+
+If there are any existing composed resources, they will be provided here:
+
+<composed>
+{{ .Composed }}
+</composed>
+
+Additional input is provided here:
+
+<input>
+{{ .Input }}
+</input>
+`
+
 // Variables used to form the prompt.
 type Variables struct {
 	// Observed composite resource, as a YAML manifest.
@@ -123,15 +126,15 @@ type Variables struct {
 type Function struct {
 	fnv1.UnimplementedFunctionRunnerServiceServer
 
-	prompt *template.Template
-	log    logging.Logger
+	vars *template.Template
+	log  logging.Logger
 }
 
 // NewFunction creates a new function powered by Claude.
 func NewFunction(log logging.Logger) *Function {
 	return &Function{
-		log:    log,
-		prompt: template.Must(template.New("prompt").Parse(prompt)),
+		log:  log,
+		vars: template.Must(template.New("vars").Parse(vars)),
 	}
 }
 
@@ -184,24 +187,48 @@ func (f *Function) RunFunction(ctx context.Context, req *fnv1.RunFunctionRequest
 		return rsp, nil
 	}
 
-	prompt := &strings.Builder{}
-	if err := f.prompt.Execute(prompt, &Variables{Composite: xr, Composed: cds, Input: in.Prompt}); err != nil {
+	vars := &strings.Builder{}
+	if err := f.vars.Execute(vars, &Variables{Composite: xr, Composed: cds, Input: in.Prompt}); err != nil {
 		response.Fatal(rsp, errors.Wrapf(err, "cannot build prompt from template"))
 		return rsp, nil
 	}
 
-	log.Debug("Using prompt", "prompt", prompt.String())
+	log.Debug("Using prompt", "prompt", vars.String())
 
 	client := anthropic.NewClient(option.WithAPIKey(key))
 	message, err := client.Messages.New(ctx, anthropic.MessageNewParams{
-		MaxTokens:   1024,
-		Model:       anthropic.ModelClaudeSonnet4_0,
-		System:      []anthropic.TextBlockParam{{Text: system}},
+		MaxTokens: 1024,
+		Model:     anthropic.ModelClaudeSonnet4_0,
+		System: []anthropic.TextBlockParam{
+			{
+				Text:         system,
+				CacheControl: anthropic.NewCacheControlEphemeralParam(),
+			},
+		},
 		Temperature: param.Opt[float64]{Value: 0}, // As little randomness as possible.
-		Messages: []anthropic.MessageParam{{
-			Role:    anthropic.MessageParamRoleUser,
-			Content: []anthropic.ContentBlockParamUnion{{OfText: &anthropic.TextBlockParam{Text: prompt.String()}}},
-		}},
+		Messages: []anthropic.MessageParam{
+			{
+				Role: anthropic.MessageParamRoleUser,
+				Content: []anthropic.ContentBlockParamUnion{
+					{
+						OfText: &anthropic.TextBlockParam{
+							Text:         prompt,
+							CacheControl: anthropic.NewCacheControlEphemeralParam(),
+						},
+					},
+				},
+			},
+			{
+				Role: anthropic.MessageParamRoleUser,
+				Content: []anthropic.ContentBlockParamUnion{
+					{
+						OfText: &anthropic.TextBlockParam{
+							Text: vars.String(),
+						},
+					},
+				},
+			},
+		},
 	})
 	if err != nil {
 		response.Fatal(rsp, errors.Wrapf(err, "cannot message Claude"))
