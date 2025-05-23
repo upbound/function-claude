@@ -6,7 +6,7 @@ toolchain go1.23.2
 
 require (
 	github.com/alecthomas/kong v0.9.0
-	github.com/anthropics/anthropic-sdk-go v0.2.0-beta.4
+	github.com/anthropics/anthropic-sdk-go v1.2.0
 	github.com/crossplane/function-sdk-go v0.4.0
 	github.com/google/go-cmp v0.6.0
 	github.com/tidwall/gjson v1.14.4

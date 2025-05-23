@@ -2,8 +2,6 @@ package main
 
 import (
 	"context"
-	"regexp"
-	"sort"
 	"strings"
 	"text/template"
 
@@ -30,9 +28,14 @@ const (
 	credKey  = "ANTHROPIC_API_KEY"
 )
 
-const prompt = `
-You are a Kubernetes templating tool designed to generate and update Kubernetes Resource Model (KRM) resources using Kubernetes server-side apply. Your task is to create or modify YAML manifests based on the provided composite resource and any existing composed resources.
+const system = `
+You are a Kubernetes templating tool designed to generate and update Kubernetes
+Resource Model (KRM) resources using Kubernetes server-side apply. Your task is
+to create, update, or delete YAML manifests based on the provided composite
+resource and any existing composed resources.
+`
 
+const prompt = `
 Here is the composite resource you'll be working with:
 
 <composite>
@@ -45,7 +48,7 @@ If there are any existing composed resources, they will be provided here:
 {{ .Composed }}
 </composed>
 
-Additional input will be provided here:
+Additional input is provided here:
 
 <input>
 {{ .Input }}
@@ -55,47 +58,53 @@ Please follow these instructions carefully:
 
 1. Analyze the provided composite resource and any existing composed resources.
 
-2. Generate a stream of YAML manifests based on the composite resource. Each manifest should:
+2. Analyze the input to understand what composed resources you should create,
+   update, or delete. You may be asked to derive composed resources from the
+   composite resource, or from other composed resources.
+
+3. Generate a stream of YAML manifests based on your analysis in steps 1 and 2.
+   Each manifest should:
    a. Be valid for Kubernetes server-side apply (fully specified intent).
    b. Omit names and namespaces.
-   c. Include an annotation with the key "upbound.io/name". The value should be the name of the resource in the <composite> tag appended with the kind of the templated resource. If there are multiple resources of the same kind, append sequential numbers to differentiate them.
-   d. Use labels to create relationships between resources when necessary. Use the name of the resource in the <composite> tag for these labels.
+   c. Include an annotation with the key "upbound.io/name". This annotation
+      must uniquely identify the manifest within the YAML stream. It must be
+      lowercase, hyphen separated, and less than 30 characters long. Prefer
+      to use the manifest's kind. If two or more manifests have the same
+      kind, look for something unique about the manifest and append that to
+      the kind. This annotation is used to match the manifests you return to
+      any manifests that were passed you inside the <composed> tag, so if
+      your intent is to update a manifest never change its "upbound.io/name"
+      annotation. This is critically important.
+   d. If it's necessary to use labels to create relationships between
+      resources, use the name of the composite resource as the label value.
 
-3. If existing composed resources are provided, try to reuse their values as much as possible. Only change values when absolutely necessary.
+4. If there are existing composed resources:
+    a. You can update an existing composed resource by including it in your
+       output with any changes you deem necessary based on the input. Try to
+       reuse existing composed resource values as much as possible. Only
+       change values when you're sure it's necessary.
+    b. If the input indicates that a resource is no longer required, you can
+       delete it by omitting it from your output.
 
-4. The output should be a stream of YAML manifests, each separated by "---". The output must be in <output> tags.
+5. Your output must only be a stream of YAML manifests, each separated by
+   "---". The output must be parseable using a YAML parser.
 
-Before generating the YAML manifests, use <analysis> tags to analyze the input and plan your approach. In your analysis:
+Example output structure:
 
-a. List all resources mentioned in the composite resource.
-b. Compare with existing composed resources (if any).
-c. Plan the necessary actions (create, update, or reuse) for each resource.
-d. Outline how to ensure proper annotations and labels for each resource.
-e. Consider any additional input provided in the <input> tag.
-
-After your analysis, provide the YAML stream as your final output.
-
-Example output structure (generic, for illustration purposes only):
-
-<analysis>
-[Your structured analysis here]
-</analysis>
-
-<output>
+<example>
+---
 apiVersion: [api-version]
 kind: [resource-kind]
 metadata:
   annotations:
-    upbound.io/name: [composite-name-resource-kind]
+    upbound.io/name: [resource-kind]
   labels:
     [relationship-labels-if-needed]
 spec:
   [resource-specific-fields]
 ---
 [Additional resources as needed]
-</output>
-
-Please proceed with your analysis and YAML generation.
+</example>
 `
 
 // Variables used to form the prompt.
@@ -115,9 +124,7 @@ type Function struct {
 	fnv1.UnimplementedFunctionRunnerServiceServer
 
 	prompt *template.Template
-	output *regexp.Regexp
-
-	log logging.Logger
+	log    logging.Logger
 }
 
 // NewFunction creates a new function powered by Claude.
@@ -125,11 +132,6 @@ func NewFunction(log logging.Logger) *Function {
 	return &Function{
 		log:    log,
 		prompt: template.Must(template.New("prompt").Parse(prompt)),
-
-		// The ?s flag makes .* match across newlines in that group.
-		// Flag groups can't be capture groups, so there's a nested
-		// capture group.
-		output: regexp.MustCompile(`<output>(?s:(.*))</output>`),
 	}
 }
 
@@ -192,10 +194,9 @@ func (f *Function) RunFunction(ctx context.Context, req *fnv1.RunFunctionRequest
 
 	client := anthropic.NewClient(option.WithAPIKey(key))
 	message, err := client.Messages.New(ctx, anthropic.MessageNewParams{
-		MaxTokens: 1024,
-		Model:     anthropic.ModelClaude3_7SonnetLatest,
-		// TODO(negz): Use a system prompt? The prompt improver
-		// recommended rolling it into the user prompt.
+		MaxTokens:   1024,
+		Model:       anthropic.ModelClaudeSonnet4_0,
+		System:      []anthropic.TextBlockParam{{Text: system}},
 		Temperature: param.Opt[float64]{Value: 0}, // As little randomness as possible.
 		Messages: []anthropic.MessageParam{{
 			Role:    anthropic.MessageParamRoleUser,
@@ -218,16 +219,7 @@ func (f *Function) RunFunction(ctx context.Context, req *fnv1.RunFunctionRequest
 	}
 	log.Debug("Got content from Claude", "content", content.Text)
 
-	// This should be a YAML stream.
-	matches := f.output.FindStringSubmatch(content.Text)
-	if len(matches) != 2 {
-		response.Fatal(rsp, errors.Errorf("expected 1 match in response for regular expression %q, got %d", f.output.String(), len(matches)))
-		return rsp, nil
-	}
-	output := matches[1]
-	log.Debug("Extracted output from content", "output", output)
-
-	dcds, err := ComposedFromYAML(output)
+	dcds, err := ComposedFromYAML(content.Text)
 	if err != nil {
 		response.Fatal(rsp, errors.Wrap(err, "cannot parse Claude output as YAML"))
 		return rsp, nil
@@ -252,18 +244,9 @@ func CompositeToYAML(xr *fnv1.Resource) (string, error) {
 // ComposedToYAML returns the supplied composed resources as a YAML stream. The
 // resources are annotated with their upbound.io/name annotations.
 func ComposedToYAML(cds map[string]*fnv1.Resource) (string, error) {
-	// TODO(negz): Does giving the model stable input like this increase the
-	// likelihood it'll be able to match resources correctly?
-	keys := make([]string, 0, len(cds))
-	for k := range cds {
-		keys = append(keys, k)
-	}
-	sort.StringSlice(keys).Sort()
-
 	composed := &strings.Builder{}
 
-	for _, name := range keys {
-		ocd := cds[name]
+	for name, ocd := range cds {
 		jocd, err := protojson.Marshal(ocd.GetResource())
 		if err != nil {
 			return "", errors.Wrap(err, "cannot convert composed resource to JSON")
@@ -292,6 +275,9 @@ func ComposedFromYAML(y string) (map[string]*fnv1.Resource, error) {
 	out := make(map[string]*fnv1.Resource)
 
 	for _, doc := range strings.Split(y, "---") {
+		if doc == "" {
+			continue
+		}
 		j, err := yaml.YAMLToJSON([]byte(doc))
 		if err != nil {
 			return nil, errors.Wrap(err, "cannot parse YAML")
