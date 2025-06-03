@@ -12,8 +12,6 @@ github.com/antchfx/htmlquery v1.2.4 h1:qLteofCMe/KGovBI6SQgmou2QNyedFUW+pE+BpeZ4
 github.com/antchfx/htmlquery v1.2.4/go.mod h1:2xO6iu3EVWs7R2JYqBbp8YzG50gj/ofqs5/0VZoDZLc=
 github.com/antchfx/xpath v1.2.0 h1:mbwv7co+x0RwgeGAOHdrKy89GvHaGvxxBtPK0uF9Zr8=
 github.com/antchfx/xpath v1.2.0/go.mod h1:i54GszH55fYfBmoZXapTHN8T8tkcHfRgLyVwwqzXNcs=
-github.com/anthropics/anthropic-sdk-go v0.2.0-beta.4 h1:vpwv6i9t4E0qppvpPxIHQLRhSYnRSZcOtU/OX26CaXA=
-github.com/anthropics/anthropic-sdk-go v0.2.0-beta.4/go.mod h1:AapDW22irxK2PSumZiQXYUFvsdQgkwIWlpESweWZI/c=
 github.com/anthropics/anthropic-sdk-go v1.2.0 h1:RQzJUqaROewrPTl7Rl4hId/TqmjFvfnkmhHJ6pP1yJ8=
 github.com/anthropics/anthropic-sdk-go v1.2.0/go.mod h1:AapDW22irxK2PSumZiQXYUFvsdQgkwIWlpESweWZI/c=
 github.com/apparentlymart/go-textseg/v15 v15.0.0 h1:uYvfpb3DyLSCGWnctWKGj857c6ew1u1fNQOlOtuGxQY=
