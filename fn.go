@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 	"text/template"
 
@@ -70,7 +71,8 @@ Please follow these instructions carefully:
        delete it by omitting it from your output.
 
 5. Your output must only be a stream of YAML manifests, each separated by
-   "---". The output must be parseable using a YAML parser.
+   "---". The output must be valid according to the validate_yaml_stream
+   tool.
 
 Example output structure:
 
@@ -109,6 +111,18 @@ Additional input is provided here:
 {{ .Input }}
 </input>
 `
+
+const (
+	validateYAMLName             = "validate_yaml_stream"
+	validateYAMLSchemaProperties = `{"yaml_stream":{"type": "string","description":"The YAML stream to validate"}}`
+	validateYAMLDescription      = `
+Accepts a YAML stream and returns whether it's valid. A YAML stream is valid if
+it can be parsed as YAML, and each YAML document is a valid Kubernetes manifest.
+All manifests must have an upbound.io/name annotation that's unique within the
+stream. If the YAML stream is valid the tool returns an empty string. If the
+YAML stream is invalid the tool returns an error string.
+`
+)
 
 // Variables used to form the prompt.
 type Variables struct {
@@ -196,65 +210,127 @@ func (f *Function) RunFunction(ctx context.Context, req *fnv1.RunFunctionRequest
 	log.Debug("Using prompt", "prompt", vars.String())
 
 	client := anthropic.NewClient(option.WithAPIKey(key))
-	message, err := client.Messages.New(ctx, anthropic.MessageNewParams{
-		MaxTokens: 1024,
-		Model:     anthropic.ModelClaudeSonnet4_0,
-		System: []anthropic.TextBlockParam{
-			{
-				Text:         system,
-				CacheControl: anthropic.NewCacheControlEphemeralParam(),
-			},
-		},
-		Temperature: param.Opt[float64]{Value: 0}, // As little randomness as possible.
-		Messages: []anthropic.MessageParam{
-			{
-				Role: anthropic.MessageParamRoleUser,
-				Content: []anthropic.ContentBlockParamUnion{
-					{
-						OfText: &anthropic.TextBlockParam{
-							Text:         prompt,
-							CacheControl: anthropic.NewCacheControlEphemeralParam(),
-						},
-					},
-				},
-			},
-			{
-				Role: anthropic.MessageParamRoleUser,
-				Content: []anthropic.ContentBlockParamUnion{
-					{
-						OfText: &anthropic.TextBlockParam{
-							Text: vars.String(),
-						},
+
+	messages := []anthropic.MessageParam{
+		{
+			Role: anthropic.MessageParamRoleUser,
+			Content: []anthropic.ContentBlockParamUnion{
+				{
+					OfText: &anthropic.TextBlockParam{
+						Text:         prompt,
+						CacheControl: anthropic.NewCacheControlEphemeralParam(),
 					},
 				},
 			},
 		},
-	})
-	if err != nil {
-		response.Fatal(rsp, errors.Wrapf(err, "cannot message Claude"))
-		return rsp, nil
+		{
+			Role: anthropic.MessageParamRoleUser,
+			Content: []anthropic.ContentBlockParamUnion{
+				{
+					OfText: &anthropic.TextBlockParam{
+						Text: vars.String(),
+					},
+				},
+			},
+		},
+	}
+	for {
+		message, err := client.Messages.New(ctx, anthropic.MessageNewParams{
+			MaxTokens: 1024,
+			Model:     anthropic.ModelClaudeSonnet4_0,
+			System: []anthropic.TextBlockParam{
+				{
+					Text:         system,
+					CacheControl: anthropic.NewCacheControlEphemeralParam(),
+				},
+			},
+			Temperature: param.Opt[float64]{Value: 0}, // As little randomness as possible.
+			Tools: []anthropic.ToolUnionParam{
+				{
+					OfTool: &anthropic.ToolParam{
+						Name:        validateYAMLName,
+						Description: anthropic.String(validateYAMLDescription),
+						InputSchema: anthropic.ToolInputSchemaParam{
+							Properties: map[string]any{
+								"yaml_stream": map[string]any{
+									"type":        "string",
+									"description": "The YAML stream to validate",
+								},
+							},
+						},
+					},
+				},
+			},
+			Messages: messages,
+		})
+		if err != nil {
+			response.Fatal(rsp, errors.Wrapf(err, "cannot message Claude"))
+			return rsp, nil
+		}
+
+		// Save Claude's response, to feed back to it on the next call.
+		messages = append(messages, message.ToParam())
+
+		toolResults := []anthropic.ContentBlockParamUnion{}
+		for _, block := range message.Content {
+			switch block.AsAny().(type) {
+
+			// This could happen several times, as Claude calls the
+			// tool to check whether its YAML is valid.
+			case anthropic.ToolUseBlock:
+				log.Debug("Got tool use block from Claude", "tool_name", block.Name, "tool_input", block.JSON.Input.Raw())
+
+				if block.Name != validateYAMLName {
+					response.Fatal(rsp, errors.Errorf("Claude tried to use unknown tool %q", block.Name))
+					return rsp, nil
+				}
+				y := gjson.Get(block.JSON.Input.Raw(), "yaml_stream").String()
+				if y == "" {
+					response.Fatal(rsp, errors.Errorf("Claude didn't provide 'yaml_stream' input property for %q tool", block.Name))
+					return rsp, nil
+				}
+
+				result := ""
+				if _, err := ComposedFromYAML(y); err != nil {
+					result = err.Error()
+				}
+				r, _ := json.Marshal(result) //nolint:errchkjson // Not expecting issues marshaling a string.
+				toolResults = append(toolResults, anthropic.NewToolResultBlock(block.ID, string(r), false))
+
+			// Despite the prompt, Claude insists on sending a text
+			// message explaining what it's going to do before it
+			// calls the tool. So this could be called several
+			// times, and only sometimes with YAML.
+			case anthropic.TextBlock:
+				if block.Text == "" {
+					response.Fatal(rsp, errors.Errorf("Claude returned empty text in message block %q", block.Name))
+					return rsp, nil
+				}
+
+				dcds, err := ComposedFromYAML(block.Text)
+				if err != nil {
+					log.Debug("Ignoring text block that doesn't appear to be YAML", "text", block.Text)
+					continue
+				}
+
+				// TODO(negz): Support setting XR status fields too.
+				rsp.Desired.Resources = dcds
+				return rsp, nil
+			}
+		}
+
+		// Claude's done using tools.
+		if len(toolResults) == 0 {
+			break
+		}
+
+		// Claude's not done using tools. Send the messages again, this
+		// time with the tool results.
+		messages = append(messages, anthropic.NewUserMessage(toolResults...))
 	}
 
-	if len(message.Content) != 1 {
-		response.Fatal(rsp, errors.Errorf("expected 1 response, got %d", len(message.Content)))
-		return rsp, nil
-	}
-	content := message.Content[0]
-	if content.Type != "text" {
-		response.Fatal(rsp, errors.Errorf("expected text response, got %q", content.Type))
-		return rsp, nil
-	}
-	log.Debug("Got content from Claude", "content", content.Text)
-
-	dcds, err := ComposedFromYAML(content.Text)
-	if err != nil {
-		response.Fatal(rsp, errors.Wrap(err, "cannot parse Claude output as YAML"))
-		return rsp, nil
-	}
-	rsp.Desired.Resources = dcds
-
-	// TODO(negz): Support setting XR status fields too.
-
+	// We should never get here.
+	response.Fatal(rsp, errors.New("Claude didn't return a YAML stream of composed resource manifests"))
 	return rsp, nil
 }
 
@@ -316,6 +392,12 @@ func ComposedFromYAML(y string) (map[string]*fnv1.Resource, error) {
 		}
 
 		name := gjson.GetBytes(j, "metadata.annotations.upbound\\.io/name").String()
+		if name == "" {
+			return nil, errors.New("missing 'upbound.io/name' annotation")
+		}
+		if _, seen := out[name]; seen {
+			return nil, errors.Errorf("'upbound.io/name' annotation %q must be unique within the YAML stream", name)
+		}
 		out[name] = &fnv1.Resource{Resource: s}
 	}
 
