@@ -113,8 +113,8 @@ const (
 	submitYAMLName             = "submit_yaml_stream"
 	submitYAMLSchemaProperties = `{"yaml_stream":{"type": "string","description":"The YAML stream to submit"}}`
 	submitYAMLDescription      = `
-Accepts a YAML stream to be submitted to the Kubernetes server. The YAML stream
-must be valid according to the validate_yaml_stream tool.
+Accepts a YAML stream to be submitted to the Kubernetes server. If this tool
+returns an error, retry the submission with a fixed version of the YAML.
 `
 )
 
