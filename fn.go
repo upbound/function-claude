@@ -286,16 +286,17 @@ func (f *Function) RunFunction(ctx context.Context, req *fnv1.RunFunctionRequest
 					dcds, err := ComposedFromYAML(y)
 					if err != nil {
 						result = err.Error()
-					} else {
-						log.Debug("Received YAML manifests from Claude", "resourceCount", len(dcds))
-						rsp.Desired.Resources = dcds
 
-						return rsp, nil
+						log.Debug("Submitted YAML stream", "result", result, "isError", true)
+						toolResults = append(toolResults, anthropic.NewToolResultBlock(block.ID, result, true))
+
+						continue
 					}
 
-					isError := result != ""
-					log.Debug("Submitted YAML stream", "result", result, "isError", isError)
-					toolResults = append(toolResults, anthropic.NewToolResultBlock(block.ID, result, isError))
+					log.Debug("Received YAML manifests from Claude", "resourceCount", len(dcds))
+					rsp.Desired.Resources = dcds
+
+					return rsp, nil
 
 				default:
 					response.Fatal(rsp, errors.Errorf("Claude tried to use unknown tool %q", block.Name))
