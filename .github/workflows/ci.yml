@@ -140,6 +140,8 @@ jobs:
       - name: Download Single-Platform Packages
         uses: actions/download-artifact@v4
         with:
+          # See https://github.com/docker/build-push-action/blob/263435/README.md#summaries
+          pattern: "!*.dockerbuild"
           path: .
           merge-multiple: true
 
