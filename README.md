@@ -3,6 +3,11 @@
 
 Use natural language prompts to compose resources.
 
+## Model Support:
+|Provider|Models|Notes|
+|---|---|---|
+|[Anthropic]|[claude-sonnet-4-20250514]|This will be configurable in the future.|
+
 ```yaml
 apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
@@ -40,3 +45,6 @@ See `fn.go` for the prompt.
 Composed resource output _should_ be more stable if you pass the output back in
 using the `--observed-resources` flag. The prompt asks Claude not to change
 existing composed resources unless it has to.
+
+[Anthropic]: https://docs.anthropic.com/en/docs/about-claude/models/overview
+[claude-sonnet-4-20250514]: https://docs.anthropic.com/en/docs/about-claude/models/overview#model-comparison-tables
