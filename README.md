@@ -1,5 +1,6 @@
 # function-claude
 [![CI](https://github.com/upbound/function-claude/actions/workflows/ci.yml/badge.svg)](https://github.com/upbound/function-claude/actions/workflows/ci.yml)
+[![Slack](https://img.shields.io/badge/slack-upbound_crossplane-purple?logo=slack)](https://crossplane.slack.com/archives/C01TRKD4623)
 
 Use natural language prompts to compose resources.
 
