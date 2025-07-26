@@ -14,6 +14,11 @@ spec:
     input:
       apiVersion: claude.fn.upbound.io/v1alpha1
       kind: Prompt
+      systemPrompt: |
+        You are a Kubernetes templating tool designed to generate and update Kubernetes
+        Resource Model (KRM) resources using Kubernetes server-side apply. Your task is
+        to create, update, or delete YAML manifests based on the provided composite
+        resource and any existing composed resources.
       userPrompt: |
         <instructions>
         Please follow these instructions carefully:
@@ -68,17 +73,17 @@ spec:
         </example>
 
         Here is the composite resource you'll be working with:
-        
+
         <composite>
         {{ .Composite }}
         </composite>
-        
+
         If there are any existing composed resources, they will be provided here:
-        
+
         <composed>
         {{ .Composed }}
         </composed>
-        
+
         Additional input is provided here:
 
         Use the resource in the <composite> tag to template a Deployment.

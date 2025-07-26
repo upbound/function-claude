@@ -29,13 +29,6 @@ const (
 	credKey  = "ANTHROPIC_API_KEY"
 )
 
-const system = `
-You are a Kubernetes templating tool designed to generate and update Kubernetes
-Resource Model (KRM) resources using Kubernetes server-side apply. Your task is
-to create, update, or delete YAML manifests based on the provided composite
-resource and any existing composed resources.
-`
-
 const (
 	submitYAMLName             = "submit_yaml_stream"
 	submitYAMLSchemaProperties = `{"yaml_stream":{"type": "string","description":"The YAML stream to submit"}}`
@@ -52,9 +45,6 @@ type Variables struct {
 
 	// Observed composed resources, as a stream of YAML manifests.
 	Composed string
-
-	// Input - i.e. user prompt.
-	Input string
 }
 
 // Function asks Claude to compose resources.
@@ -155,7 +145,7 @@ func (f *Function) RunFunction(ctx context.Context, req *fnv1.RunFunctionRequest
 			Model:     anthropic.ModelClaudeSonnet4_0,
 			System: []anthropic.TextBlockParam{
 				{
-					Text:         system,
+					Text:         in.SystemPrompt,
 					CacheControl: anthropic.NewCacheControlEphemeralParam(),
 				},
 			},
