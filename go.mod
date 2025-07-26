@@ -1,12 +1,12 @@
 module github.com/upbound/function-claude
 
-go 1.23.0
+go 1.24
 
-toolchain go1.23.2
+toolchain go1.24.4
 
 require (
 	github.com/alecthomas/kong v0.9.0
-	github.com/crossplane/function-sdk-go v0.4.0
+	github.com/crossplane/function-sdk-go v0.5.0-rc.0.0.20250715215746-ca27889cd196
 	github.com/google/go-cmp v0.6.0
 	github.com/tidwall/gjson v1.14.4
 	github.com/tidwall/sjson v1.2.5

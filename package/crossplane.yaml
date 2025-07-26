@@ -4,5 +4,8 @@ kind: Function
 metadata:
   name: function-claude
 spec:
+  # Can work with either compositions or operations.
   capabilities:
   - composition
+  - operation
+
