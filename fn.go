@@ -78,7 +78,7 @@ func (f *Function) RunFunction(ctx context.Context, req *fnv1.RunFunctionRequest
 
 	c, err := request.GetCredentials(req, credName)
 	if err != nil {
-		response.Fatal(rsp, errors.Wrapf(err, "cannot get Anthropic API key from credential %q", credName))
+		response.Fatal(rsp, errors.Wrapf(err, "cannot get ANTHROPIC_API_KEY from credential %q", credName))
 		return rsp, nil
 	}
 	if c.Type != resource.CredentialsTypeData {
