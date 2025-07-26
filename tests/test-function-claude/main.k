@@ -50,7 +50,7 @@ _items = [
                         spec: {
                           containers: [{
                             image: "upbound/example:v1"
-                            name: "example-db"
+                            name: "app"
                           }]
                         }
                       }
@@ -80,7 +80,6 @@ _items = [
                     spec: {
                       ports: [{
                         port: 8080
-                        protocol: "TCP"
                         targetPort: 8080
                       }]
                       selector: {
