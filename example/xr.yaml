@@ -5,4 +5,4 @@ metadata:
   name: example-db
 spec:
   replicas: 10
-  image: negz/example:v1
+  image: upbound/example:v1
