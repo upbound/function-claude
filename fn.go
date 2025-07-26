@@ -2,14 +2,16 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"text/template"
 
-	"github.com/anthropics/anthropic-sdk-go"
-	"github.com/anthropics/anthropic-sdk-go/option"
-	"github.com/anthropics/anthropic-sdk-go/packages/param"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
+	"github.com/tmc/langchaingo/agents"
+	"github.com/tmc/langchaingo/chains"
+	anthropicllm "github.com/tmc/langchaingo/llms/anthropic"
+	"github.com/tmc/langchaingo/tools"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/structpb"
 	"sigs.k8s.io/yaml"
@@ -29,15 +31,6 @@ const (
 	credKey  = "ANTHROPIC_API_KEY"
 )
 
-const (
-	submitYAMLName             = "submit_yaml_stream"
-	submitYAMLSchemaProperties = `{"yaml_stream":{"type": "string","description":"The YAML stream to submit"}}`
-	submitYAMLDescription      = `
-Accepts a YAML stream to be submitted to the Kubernetes server. If this tool
-returns an error, retry the submission with a fixed version of the YAML.
-`
-)
-
 // Variables used to form the prompt.
 type Variables struct {
 	// Observed composite resource, as a YAML manifest.
@@ -50,13 +43,21 @@ type Variables struct {
 // Function asks Claude to compose resources.
 type Function struct {
 	fnv1.UnimplementedFunctionRunnerServiceServer
+	ai agentInvoker
 
 	log logging.Logger
+}
+
+// agentInvoker is a consumer interface for working with agents. Notably this
+// is helpful for writing tests that mock the agent invocations.
+type agentInvoker interface {
+	Invoke(ctx context.Context, key, system, prompt string) (string, error)
 }
 
 // NewFunction creates a new function powered by Claude.
 func NewFunction(log logging.Logger) *Function {
 	return &Function{
+		ai:  &agent{},
 		log: log,
 	}
 }
@@ -124,117 +125,22 @@ func (f *Function) RunFunction(ctx context.Context, req *fnv1.RunFunctionRequest
 
 	log.Debug("Using prompt", "prompt", vars.String())
 
-	client := anthropic.NewClient(option.WithAPIKey(key))
-
-	messages := []anthropic.MessageParam{
-		{
-			Role: anthropic.MessageParamRoleUser,
-			Content: []anthropic.ContentBlockParamUnion{
-				{
-					OfText: &anthropic.TextBlockParam{
-						Text:         vars.String(),
-						CacheControl: anthropic.NewCacheControlEphemeralParam(),
-					},
-				},
-			},
-		},
-	}
-	for {
-		message, err := client.Messages.New(ctx, anthropic.MessageNewParams{
-			MaxTokens: 1024,
-			Model:     anthropic.ModelClaudeSonnet4_0,
-			System: []anthropic.TextBlockParam{
-				{
-					Text:         in.SystemPrompt,
-					CacheControl: anthropic.NewCacheControlEphemeralParam(),
-				},
-			},
-			Temperature: param.Opt[float64]{Value: 0}, // As little randomness as possible.
-			Tools: []anthropic.ToolUnionParam{
-				{
-					OfTool: &anthropic.ToolParam{
-						Name:        submitYAMLName,
-						Description: anthropic.String(submitYAMLDescription),
-						InputSchema: anthropic.ToolInputSchemaParam{
-							Properties: map[string]any{
-								"yaml_stream": map[string]any{
-									"type":        "string",
-									"description": "The YAML stream to submit",
-								},
-							},
-						},
-					},
-				},
-			},
-			Messages: messages,
-		})
-		if err != nil {
-			response.Fatal(rsp, errors.Wrapf(err, "cannot message Claude"))
-			return rsp, nil
-		}
-
-		// Save Claude's response, to feed back to it on the next call.
-		messages = append(messages, message.ToParam())
-
-		toolResults := []anthropic.ContentBlockParamUnion{}
-		for _, block := range message.Content {
-			switch block.AsAny().(type) {
-
-			// This could happen several times, as Claude calls the
-			// tool to check whether its YAML is valid.
-			case anthropic.ToolUseBlock:
-				log.Debug("Got tool use block from Claude", "tool_name", block.Name, "tool_input", block.JSON.Input.Raw())
-
-				switch block.Name {
-				case submitYAMLName:
-					y := gjson.Get(block.JSON.Input.Raw(), "yaml_stream").String()
-					if y == "" {
-						response.Fatal(rsp, errors.Errorf("Claude didn't provide 'yaml_stream' input property for %q tool", block.Name))
-						return rsp, nil
-					}
-
-					result := ""
-					dcds, err := ComposedFromYAML(y)
-					if err != nil {
-						result = err.Error()
-
-						log.Debug("Submitted YAML stream", "result", result, "isError", true)
-						toolResults = append(toolResults, anthropic.NewToolResultBlock(block.ID, result, true))
-
-						continue
-					}
-
-					log.Debug("Received YAML manifests from Claude", "resourceCount", len(dcds))
-					rsp.Desired.Resources = dcds
-
-					return rsp, nil
-
-				default:
-					response.Fatal(rsp, errors.Errorf("Claude tried to use unknown tool %q", block.Name))
-					return rsp, nil
-				}
-
-			// Despite the prompt, Claude insists on sending a text
-			// message explaining what it's going to do before it
-			// calls the tool. So this could be called several
-			// times, and only sometimes with YAML.
-			case anthropic.TextBlock:
-				log.Debug("Received text block from Claude", "text", block.Text)
-			}
-		}
-
-		// Claude's done using tools.
-		if len(toolResults) == 0 {
-			break
-		}
-
-		// Claude's not done using tools. Send the messages again, this
-		// time with the tool results.
-		messages = append(messages, anthropic.NewUserMessage(toolResults...))
+	resp, err := f.ai.Invoke(ctx, key, in.SystemPrompt, vars.String())
+	if err != nil {
+		response.Fatal(rsp, errors.Wrap(err, "failed to run chain"))
+		return rsp, nil
 	}
 
-	// We should never get here.
-	response.Fatal(rsp, errors.New("Claude didn't return a YAML stream of composed resource manifests"))
+	result := ""
+	dcds, err := ComposedFromYAML(resp)
+	if err != nil {
+		result = err.Error()
+		log.Debug("Submitted YAML stream", "result", result, "isError", true)
+		response.Fatal(rsp, errors.Wrap(err, "did not receive a YAML stream from Claude"))
+	}
+
+	log.Debug("Received YAML manifests from Claude", "resourceCount", len(dcds))
+	rsp.Desired.Resources = dcds
 	return rsp, nil
 }
 
@@ -280,11 +186,14 @@ func ComposedToYAML(cds map[string]*fnv1.Resource) (string, error) {
 // annotation.
 func ComposedFromYAML(y string) (map[string]*fnv1.Resource, error) {
 	out := make(map[string]*fnv1.Resource)
+	// make sure any leading whitespace is removed
+	wsRemoved := strings.TrimSpace(y)
 
-	for _, doc := range strings.Split(y, "---") {
+	for _, doc := range strings.Split(wsRemoved, "---") {
 		if doc == "" {
 			continue
 		}
+
 		j, err := yaml.YAMLToJSON([]byte(doc))
 		if err != nil {
 			return nil, errors.Wrap(err, "cannot parse YAML")
@@ -306,4 +215,31 @@ func ComposedFromYAML(y string) (map[string]*fnv1.Resource, error) {
 	}
 
 	return out, nil
+}
+
+type agent struct{}
+
+// Invoke makes an external call to the configured LLM with the supplied
+// credential key, system and user prompts.
+func (a *agent) Invoke(ctx context.Context, key, system, prompt string) (string, error) {
+	model, err := anthropicllm.New(
+		anthropicllm.WithToken(key),
+	)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to build model")
+	}
+
+	agent := agents.NewOneShotAgent(
+		model,
+		// NOTE(tnthornton) Placeholder for future integrations with external Tools.
+		[]tools.Tool{},
+		agents.WithMaxIterations(3),
+	)
+
+	return chains.Run(
+		ctx,
+		agents.NewExecutor(agent),
+		fmt.Sprintf("%s\n%s", system, prompt),
+		chains.WithTemperature(float64(0)),
+	)
 }
