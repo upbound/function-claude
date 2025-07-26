@@ -21,7 +21,7 @@ import (
 	"github.com/crossplane/function-sdk-go/resource"
 	"github.com/crossplane/function-sdk-go/response"
 
-	"github.com/upbound/function-claude/input/v1beta1"
+	"github.com/upbound/function-claude/input/v1alpha1"
 )
 
 const (
@@ -154,7 +154,7 @@ func (f *Function) RunFunction(ctx context.Context, req *fnv1.RunFunctionRequest
 
 	rsp := response.To(req, response.DefaultTTL)
 
-	in := &v1beta1.Prompt{}
+	in := &v1alpha1.Prompt{}
 	if err := request.GetInput(req, in); err != nil {
 		response.Fatal(rsp, errors.Wrapf(err, "cannot get Function input from %T", req))
 		return rsp, nil
@@ -197,7 +197,7 @@ func (f *Function) RunFunction(ctx context.Context, req *fnv1.RunFunctionRequest
 	}
 
 	vars := &strings.Builder{}
-	if err := f.vars.Execute(vars, &Variables{Composite: xr, Composed: cds, Input: in.Prompt}); err != nil {
+	if err := f.vars.Execute(vars, &Variables{Composite: xr, Composed: cds, Input: in.UserPrompt}); err != nil {
 		response.Fatal(rsp, errors.Wrapf(err, "cannot build prompt from template"))
 		return rsp, nil
 	}
