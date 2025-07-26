@@ -10,7 +10,7 @@ spec:
   pipeline:
   - step: make-claude-do-it
     functionRef:
-      name: function-claude
+      name: upbound-function-claude
     input:
       apiVersion: claude.fn.crossplane.io/v1beta1
       kind: Prompt
