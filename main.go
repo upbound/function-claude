@@ -2,10 +2,20 @@
 package main
 
 import (
+	"log"
+
 	"github.com/alecthomas/kong"
 
 	"github.com/crossplane/function-sdk-go"
+	"github.com/crossplane/function-template-go/internal/bootcheck"
 )
+
+func init() {
+	err := bootcheck.CheckEnv()
+	if err != nil {
+		log.Fatalf("bootcheck failed. function will not be started: %v", err)
+	}
+}
 
 // CLI of this Function.
 type CLI struct {
