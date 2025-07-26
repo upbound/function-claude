@@ -64,7 +64,7 @@ func NewFunction(log logging.Logger) *Function {
 }
 
 // RunFunction runs the Function.
-func (f *Function) RunFunction(ctx context.Context, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) { //nolint:gocyclo // TODO(negz): Factor out the API calling bits.
+func (f *Function) RunFunction(ctx context.Context, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
 	log := f.log.WithValues("tag", req.GetMeta().GetTag())
 	log.Info("Running function", "tag", req.GetMeta().GetTag())
 
@@ -108,55 +108,6 @@ func (f *Function) RunFunction(ctx context.Context, req *fnv1.RunFunctionRequest
 	}
 	// Handle operation pipeline separately.
 	return f.operationPipeline(ctx, log, d)
-
-	// // TODO(negz): I'm using YAML as input/output because I assume the model
-	// // will be better able to represent Kubernetes stuff as YAML manifests
-	// // than as e.g. JSON. YAML's much more prevalent in examples etc. Could
-	// // be worth validating this - could we use JSON instead to skip extra
-	// // conversion?
-	// xr, err := CompositeToYAML(req.GetObserved().GetComposite())
-	// if err != nil {
-	// 	response.Fatal(rsp, errors.Wrap(err, "cannot convert observed XR to YAML"))
-	// 	return rsp, nil
-	// }
-
-	// cds, err := ComposedToYAML(req.GetObserved().GetResources())
-	// if err != nil {
-	// 	response.Fatal(rsp, errors.Wrap(err, "cannot convert observed composed resources to YAML"))
-	// 	return rsp, nil
-	// }
-
-	// prompt, err := template.New("vars").Parse(in.UserPrompt)
-	// if err != nil {
-	// 	response.Fatal(rsp, errors.Wrap(err, "cannot parse user input"))
-	// 	return rsp, nil
-	// }
-
-	// vars := &strings.Builder{}
-	// if err := prompt.Execute(vars, &Variables{Composite: xr, Composed: cds}); err != nil {
-	// 	response.Fatal(rsp, errors.Wrapf(err, "cannot build prompt from template"))
-	// 	return rsp, nil
-	// }
-
-	// log.Debug("Using prompt", "prompt", vars.String())
-
-	// resp, err := f.ai.Invoke(ctx, key, in.SystemPrompt, vars.String())
-	// if err != nil {
-	// 	response.Fatal(rsp, errors.Wrap(err, "failed to run chain"))
-	// 	return rsp, nil
-	// }
-
-	// result := ""
-	// dcds, err := ComposedFromYAML(resp)
-	// if err != nil {
-	// 	result = err.Error()
-	// 	log.Debug("Submitted YAML stream", "result", result, "isError", true)
-	// 	response.Fatal(rsp, errors.Wrap(err, "did not receive a YAML stream from Claude"))
-	// }
-
-	// log.Debug("Received YAML manifests from Claude", "resourceCount", len(dcds))
-	// rsp.Desired.Resources = dcds
-	// return rsp, nil
 }
 
 // CompositeToYAML returns the XR as YAML.
