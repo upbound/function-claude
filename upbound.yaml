@@ -1,0 +1,17 @@
+apiVersion: meta.dev.upbound.io/v1alpha1
+kind: Project
+metadata:
+  name: function-claude
+spec:
+  dependsOn:
+  - apiVersion: pkg.crossplane.io/v1
+    kind: Function
+    package: xpkg.upbound.io/upbound/function-claude
+    version: v0.0.1
+  description: function-claude
+  license: Apache-2.0
+  maintainer: Upbound User <user@example.com>
+  readme: |
+    this is only here for compositionTest
+  repository: xpkg.upbound.io/upbound/function-claude
+  source: github.com/upbound/function-claude

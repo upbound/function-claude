@@ -169,3 +169,30 @@ jobs:
         # XPKG repo name can't contain uppercase characters like UpboundCare, we need to lowercase if the GithubOrg contains them.
         # See https://github.com/orgs/community/discussions/25768#discussioncomment-8057564 for XPKG@L lowercase explanation
         run: "./crossplane --verbose xpkg push --package-files $(echo *.xpkg|tr ' ' ,) ${XPKG@L}:${{ env.XPKG_VERSION }}"
+
+      - name: Install up
+        uses: upbound/action-up@v1
+        with:
+          skip-login: true
+          channel: main
+          version: v0.39.0-384.g0a0c8634 # we need compositionTests with functionCredentialsPath
+      - name: Update package version in upbound.yaml
+        run: | 
+          sed -i "s/version: v0.0.1/version: ${{ env.XPKG_VERSION }}/" upbound.yaml
+
+      - name: Add secret.yaml
+        run: |
+          cat <<EOF | envsubst > example/secret.yaml
+            apiVersion: v1
+            kind: Secret
+            metadata:
+              name: claude
+              namespace: crossplane-system
+            data:
+              ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY_B64}
+          EOF
+        env:
+          ANTHROPIC_API_KEY_B64: ${{ secrets.ANTHROPIC_API_KEY_B64 }}
+
+      - name: Run composition tests
+        run: up test run tests/*
