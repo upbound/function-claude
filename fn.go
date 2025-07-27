@@ -20,7 +20,7 @@ import (
 	"github.com/crossplane/function-sdk-go/request"
 	"github.com/crossplane/function-sdk-go/resource"
 	"github.com/crossplane/function-sdk-go/response"
-	"github.com/crossplane/function-template-go/input/v1beta1"
+	"github.com/upbound/function-claude/input/v1beta1"
 )
 
 const (

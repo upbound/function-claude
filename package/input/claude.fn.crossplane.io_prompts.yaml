@@ -28,9 +28,6 @@ spec:
               may reject unrecognized values.
               More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
             type: string
-          example:
-            description: Prompt to send to Claude.
-            type: string
           kind:
             description: |-
               Kind is a string value representing the REST resource this object represents.
@@ -41,8 +38,11 @@ spec:
             type: string
           metadata:
             type: object
+          prompt:
+            description: Prompt to send to Claude.
+            type: string
         required:
-        - example
+        - prompt
         type: object
     served: true
     storage: true

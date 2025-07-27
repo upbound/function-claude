@@ -10,6 +10,12 @@ ARG GO_VERSION=1
 # architecture that we're building the function for.
 FROM --platform=${BUILDPLATFORM} golang:${GO_VERSION} AS build
 
+# Optional build tag for go build.
+ARG GO_BUILD_TAG
+
+# GitHub token for private repositories.
+ARG GITHUB_TOKEN
+
 WORKDIR /fn
 
 # Most functions don't want or need CGo support, so we disable it.
@@ -21,7 +27,13 @@ ENV CGO_ENABLED=0
 # This lets us avoid re-downloading modules if we don't need to. The type=target
 # mount tells Docker to mount the current directory read-only in the WORKDIR.
 # The type=cache mount tells Docker to cache the Go modules cache across builds.
-RUN --mount=target=. --mount=type=cache,target=/go/pkg/mod go mod download
+RUN --mount=target=. \
+    --mount=type=cache,target=/go/pkg/mod \
+    bash -c '\
+        git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/" && \
+        go env -w GOPRIVATE=github.com/upbound/* && \
+        go mod download\
+    '
 
 # The TARGETOS and TARGETARCH args are set by docker. We set GOOS and GOARCH to
 # these values to ask Go to compile a binary for these architectures. If
@@ -36,7 +48,7 @@ ARG TARGETARCH
 RUN --mount=target=. \
     --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
-    GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -o /function .
+    GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -tags ${GO_BUILD_TAG} -o /function .
 
 # Produce the Function image. We use a very lightweight 'distroless' image that
 # does not include any of the build tools used in previous stages.
