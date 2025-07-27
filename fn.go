@@ -208,7 +208,7 @@ func (f *Function) compositionPipeline(ctx context.Context, log logging.Logger, 
 	prompt, err := template.New("prompt").Parse(d.in.UserPrompt)
 	if err != nil {
 		response.Fatal(d.rsp, errors.Wrap(err, "cannot parse userPrompt"))
-		return d.rsp, nil
+		return d.rsp, err
 	}
 
 	// TODO(negz): I'm using YAML as input/output because I assume the model
@@ -219,19 +219,19 @@ func (f *Function) compositionPipeline(ctx context.Context, log logging.Logger, 
 	xr, err := CompositeToYAML(d.req.GetObserved().GetComposite())
 	if err != nil {
 		response.Fatal(d.rsp, errors.Wrap(err, "cannot convert observed XR to YAML"))
-		return d.rsp, nil
+		return d.rsp, err
 	}
 
 	cds, err := ComposedToYAML(d.req.GetObserved().GetResources())
 	if err != nil {
 		response.Fatal(d.rsp, errors.Wrap(err, "cannot convert observed composed resources to YAML"))
-		return d.rsp, nil
+		return d.rsp, err
 	}
 
 	vars := &strings.Builder{}
 	if err := prompt.Execute(vars, &Variables{Composite: xr, Composed: cds}); err != nil {
 		response.Fatal(d.rsp, errors.Wrapf(err, "cannot build prompt from template"))
-		return d.rsp, nil
+		return d.rsp, err
 	}
 
 	log.Debug("Using prompt", "prompt", vars.String())
@@ -240,7 +240,7 @@ func (f *Function) compositionPipeline(ctx context.Context, log logging.Logger, 
 
 	if err != nil {
 		response.Fatal(d.rsp, errors.Wrap(err, "failed to run chain"))
-		return d.rsp, nil
+		return d.rsp, err
 	}
 
 	result := ""
@@ -249,6 +249,7 @@ func (f *Function) compositionPipeline(ctx context.Context, log logging.Logger, 
 		result = err.Error()
 		log.Debug("Submitted YAML stream", "result", result, "isError", true)
 		response.Fatal(d.rsp, errors.Wrap(err, "did not receive a YAML stream from Claude"))
+		return d.rsp, err
 	}
 
 	log.Debug("Received YAML manifests from Claude", "resourceCount", len(dcds))
@@ -276,7 +277,7 @@ func (f *Function) operationPipeline(ctx context.Context, log logging.Logger, d 
 
 	if len(rs) != 1 {
 		response.Fatal(d.rsp, errors.New("too many resources sent to the function. expected 1"))
-		return d.rsp, nil
+		return d.rsp, err
 	}
 
 	rb, err := json.Marshal(rs[0].Resource.UnstructuredContent())
