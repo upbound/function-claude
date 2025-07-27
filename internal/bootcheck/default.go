@@ -1,6 +1,8 @@
 //go:build !custombootcheck
 // +build !custombootcheck
 
+// Package bootcheck supports mutually exclusive implementations of
+// custom preflight checks for the composition function.
 package bootcheck
 
 // CheckEnv performs environment validation checks.
