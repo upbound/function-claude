@@ -108,8 +108,10 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           target: image
-          build-args:
+          build-args: |
             GO_VERSION=${{ env.GO_VERSION }}
+            GO_BUILD_TAG=default
+            GITHUB_TOKEN=${{ secrets.UPBOUND_BOT_GITHUB_TOKEN }}
           outputs: type=docker,dest=runtime-${{ matrix.arch }}.tar
 
       - name: Setup the Crossplane CLI
