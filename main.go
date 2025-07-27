@@ -7,6 +7,7 @@ import (
 	"github.com/alecthomas/kong"
 
 	"github.com/crossplane/function-sdk-go"
+
 	"github.com/upbound/function-claude/internal/bootcheck"
 )
 

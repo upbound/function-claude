@@ -37,6 +37,7 @@ linters-settings:
       - default
       - prefix(github.com/crossplane)
       - prefix(github.com/crossplane-contrib)
+      - prefix(github.com/upbound)
       - blank
       - dot
 
