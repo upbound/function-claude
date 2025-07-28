@@ -257,9 +257,15 @@ func (f *Function) compositionPipeline(ctx context.Context, log logging.Logger, 
 	return d.rsp, nil
 }
 
+type OperationVariables struct {
+	Input     string `json:"input"`
+	Resources string `json:"resources"`
+}
+
 // operationPipeline processes the given pipelineDetails with the assumption
 // that the function is defined in an operations pipeline.
 func (f *Function) operationPipeline(ctx context.Context, log logging.Logger, d pipelineDetails) (*fnv1.RunFunctionResponse, error) {
+	prompt, err := template.New("prompt").Parse(d.in.UserPrompt)
 	rr, err := request.GetRequiredResources(d.req)
 	if err != nil {
 		response.Fatal(d.rsp, errors.Wrapf(err, "cannot get Function extra resources from %T", d.req))
@@ -280,17 +286,21 @@ func (f *Function) operationPipeline(ctx context.Context, log logging.Logger, d 
 		return d.rsp, err
 	}
 
-	rb, err := json.Marshal(rs[0].Resource.UnstructuredContent())
+	rb, err := json.MarshalIndent(rs[0].Resource.UnstructuredContent(), "", "    ")
 	if err != nil {
 		response.Fatal(d.rsp, errors.New("failed to unmarshal required resource"))
 		return d.rsp, err
 	}
 
-	prompt := fmt.Sprintf("%s\n%s", d.in.UserPrompt, string(rb))
+	vars := &strings.Builder{}
+	if err := prompt.Execute(vars, &OperationVariables{Input: d.in.UserPrompt, Resources: string(rb)}); err != nil {
+		response.Fatal(d.rsp, errors.Wrapf(err, "cannot build prompt from template"))
+		return d.rsp, err
+	}
 
-	log.Debug("Using prompt", "prompt", prompt)
+	log.Debug("Using prompt", "prompt", vars.String())
 
-	resp, err := f.ai.Invoke(ctx, d.cred, d.in.SystemPrompt, prompt)
+	resp, err := f.ai.Invoke(ctx, d.cred, d.in.SystemPrompt, vars.String())
 
 	if err != nil {
 		response.Fatal(d.rsp, errors.Wrap(err, "failed to run chain"))
