@@ -1,0 +1,25 @@
+---
+apiVersion: pkg.crossplane.io/v1beta1
+kind: Function
+metadata:
+  name: function-rds-metrics
+  annotations:
+    render.crossplane.io/runtime: Development
+spec:
+  package: function-rds-metrics
+---
+apiVersion: pkg.crossplane.io/v1beta1
+kind: Function
+metadata:
+  name: function-claude
+  annotations:
+    render.crossplane.io/runtime: Development
+spec:
+  package: function-claude
+---
+apiVersion: pkg.crossplane.io/v1beta1
+kind: Function
+metadata:
+  name: function-auto-ready
+spec:
+  package: xpkg.upbound.io/crossplane-contrib/function-auto-ready:v0.2.1

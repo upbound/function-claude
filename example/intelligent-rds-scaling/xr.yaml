@@ -1,0 +1,18 @@
+apiVersion: aws.platform.upbound.io/v1alpha1
+kind: XSQLInstance
+metadata:
+  name: my-intelligent-rds
+spec:
+  parameters:
+    region: us-west-2
+    engine: postgres
+    engineVersion: "13.7"
+    storageGB: 100
+    networkRef:
+      id: basic-network
+    passwordSecretRef:
+      namespace: crossplane-system
+      name: rds-password
+      key: password
+    providerConfigName: default
+    deletionPolicy: Delete

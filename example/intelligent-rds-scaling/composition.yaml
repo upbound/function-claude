@@ -1,0 +1,76 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: intelligent-rds-scaling
+spec:
+  compositeTypeRef:
+    apiVersion: aws.platform.upbound.io/v1alpha1
+    kind: XSQLInstance
+  mode: Pipeline
+  pipeline:
+  # Step 1: Fetch RDS performance metrics from CloudWatch
+  - step: fetch-rds-metrics
+    functionRef:
+      name: function-rds-metrics
+    input:
+      apiVersion: rdsmetrics.fn.crossplane.io/v1beta1
+      kind: Input
+      databaseNameRef: "xr.metadata.name"
+      region: "us-west-2"
+      metrics:
+      - "CPUUtilization"
+      - "DatabaseConnections"
+      - "FreeableMemory"
+      - "FreeStorageSpace"
+      - "ReadIOPS"
+      - "WriteIOPS"
+      period: 300
+      target: "context.metricsResult"
+    credentials:
+    - name: aws-creds
+      source: Secret
+      secretRef:
+        namespace: crossplane-system
+        name: aws-creds
+
+  # Step 2: Use Claude AI to analyze metrics and make intelligent scaling decisions
+  - step: intelligent-scaling-analysis
+    functionRef:
+      name: function-claude
+    input:
+      apiVersion: claude.fn.crossplane.io/v1beta1
+      kind: Prompt
+      contextFields: ["metricsResult"]
+      prompt: |
+        You are an intelligent RDS scaling system. Analyze the CloudWatch metrics provided in the <context> tag and determine if any RDS instances need scaling adjustments.
+
+        IMPORTANT CONSTRAINTS:
+        1. Only modify resources with kind "Instance" and apiVersion containing "rds"
+        2. Preserve all existing resource configurations except for scaling-related fields
+        3. Keep the "upbound.io/name" annotation unchanged for proper resource matching
+        4. Make scaling decisions based on these thresholds:
+           - High CPU (>80%): Consider increasing instance class
+           - High Memory usage (FreeableMemory <20% of total): Consider memory-optimized instance
+           - High IOPS (>80% of provisioned): Consider increasing storage or instance class
+           - High connections (>80% of max): Consider increasing instance class
+        
+        SCALING LOGIC:
+        - For high CPU/Memory/IOPS: Upgrade instance class (e.g., db.t3.micro → db.t3.small → db.t3.medium)
+        - For storage issues: Increase allocatedStorage by 20GB increments
+        - Only scale up, never scale down automatically for safety
+
+        If metrics indicate scaling is needed, update the Instance.rds resource accordingly.
+        If no scaling is needed, return the existing resources unchanged.
+
+        Focus on the RDS Instance resource and ensure proper resource management.
+    credentials:
+    - name: claude
+      source: Secret
+      secretRef:
+        namespace: crossplane-system
+        name: claude
+
+  # Step 3: Auto-ready function to mark resources as ready
+  - step: auto-ready
+    functionRef:
+      name: function-auto-ready

@@ -102,6 +102,14 @@ If there are any existing composed resources, they will be provided here:
 {{ .Composed }}
 </composed>
 
+{{- if .Context }}
+Pipeline context data is provided here:
+
+<context>
+{{ .Context }}
+</context>
+{{- end }}
+
 Additional input is provided here:
 
 <input>
@@ -128,6 +136,9 @@ type Variables struct {
 
 	// Input - i.e. user prompt.
 	Input string
+	
+	// Context data from pipeline context fields.
+	Context string
 }
 
 // Function asks Claude to compose resources.
@@ -195,8 +206,15 @@ func (f *Function) RunFunction(ctx context.Context, req *fnv1.RunFunctionRequest
 		return rsp, nil
 	}
 
+	// Extract context data if context fields are specified
+	contextData, err := ContextToYAML(req.GetContext(), in.ContextFields)
+	if err != nil {
+		response.Fatal(rsp, errors.Wrap(err, "cannot convert pipeline context to YAML"))
+		return rsp, nil
+	}
+
 	vars := &strings.Builder{}
-	if err := f.vars.Execute(vars, &Variables{Composite: xr, Composed: cds, Input: in.Prompt}); err != nil {
+	if err := f.vars.Execute(vars, &Variables{Composite: xr, Composed: cds, Input: in.Prompt, Context: contextData}); err != nil {
 		response.Fatal(rsp, errors.Wrapf(err, "cannot build prompt from template"))
 		return rsp, nil
 	}
@@ -395,4 +413,38 @@ func ComposedFromYAML(y string) (map[string]*fnv1.Resource, error) {
 	}
 
 	return out, nil
+}
+
+// ContextToYAML extracts specified fields from pipeline context and converts them to YAML.
+func ContextToYAML(ctx *structpb.Struct, fields []string) (string, error) {
+	if ctx == nil || len(fields) == 0 {
+		return "", nil
+	}
+
+	contextMap := ctx.AsMap()
+	result := make(map[string]interface{})
+
+	for _, field := range fields {
+		if value, exists := contextMap[field]; exists {
+			result[field] = value
+		}
+	}
+
+	if len(result) == 0 {
+		return "", nil
+	}
+
+	// Convert result map to structpb.Struct, then to JSON, then to YAML
+	resultStruct, err := structpb.NewStruct(result)
+	if err != nil {
+		return "", errors.Wrap(err, "cannot convert context data to struct")
+	}
+
+	j, err := protojson.Marshal(resultStruct)
+	if err != nil {
+		return "", errors.Wrap(err, "cannot convert context data to JSON")
+	}
+
+	y, err := yaml.JSONToYAML(j)
+	return string(y), errors.Wrap(err, "cannot convert context data to YAML")
 }

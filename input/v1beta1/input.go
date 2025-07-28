@@ -24,4 +24,9 @@ type Prompt struct {
 
 	// Prompt to send to Claude.
 	Prompt string `json:"prompt"`
+	
+	// ContextFields is a list of context field names to include in the prompt
+	// (e.g., ["metricsResult", "otherData"] to access context.metricsResult and context.otherData)
+	// +optional
+	ContextFields []string `json:"contextFields,omitempty"`
 }
