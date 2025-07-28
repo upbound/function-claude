@@ -116,5 +116,26 @@ Composed resource output _should_ be more stable if you pass the output back in
 using the `--observed-resources` flag. The prompt asks Claude not to change
 existing composed resources unless it has to.
 
+## Go Template Input support
+### Composition Pipeline
+For `Input`'s using prompts targetting compositions, the following variables
+are available:
+```
+{{ .Composed }}
+{{ .Composite }}
+```
+
+Including these variables in your prompt will result in the variables being
+replaced by the composed and composite resources progressing through the pipleline.
+
+### Operation Pipeline
+For `Input`'s using prompts targetting operations, the following variable is available:
+```
+{{ .Resources }}
+```
+
+Including this variable in your prompt will result in the variable being
+replaced by the required resource supplied to the function.
+
 [Anthropic]: https://docs.anthropic.com/en/docs/about-claude/models/overview
 [claude-sonnet-4-20250514]: https://docs.anthropic.com/en/docs/about-claude/models/overview#model-comparison-tables

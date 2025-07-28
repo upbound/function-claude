@@ -257,6 +257,7 @@ func (f *Function) compositionPipeline(ctx context.Context, log logging.Logger, 
 	return d.rsp, nil
 }
 
+// OperationVariables used to form the prompt.
 type OperationVariables struct {
 	Input     string `json:"input"`
 	Resources string `json:"resources"`
@@ -266,6 +267,10 @@ type OperationVariables struct {
 // that the function is defined in an operations pipeline.
 func (f *Function) operationPipeline(ctx context.Context, log logging.Logger, d pipelineDetails) (*fnv1.RunFunctionResponse, error) {
 	prompt, err := template.New("prompt").Parse(d.in.UserPrompt)
+	if err != nil {
+		response.Fatal(d.rsp, errors.New("failed to parse UserPrompt as a go-template"))
+		return d.rsp, err
+	}
 	rr, err := request.GetRequiredResources(d.req)
 	if err != nil {
 		response.Fatal(d.rsp, errors.Wrapf(err, "cannot get Function extra resources from %T", d.req))
