@@ -201,9 +201,21 @@ func (f *Function) RunFunction(ctx context.Context, req *fnv1.RunFunctionRequest
 		return rsp, nil
 	}
 
-	cds, err := ComposedToYAML(req.GetObserved().GetResources())
+	// Get composed resources from both observed and desired state
+	// In first reconciliation, resources exist only in desired state
+	// In XR spec updates, desired state has the latest intended resources
+	composedResources := req.GetObserved().GetResources()
+	if len(composedResources) == 0 {
+		// Fallback to desired resources (first reconciliation scenario)
+		composedResources = req.GetDesired().GetResources()
+		log.Debug("Using desired resources (first reconciliation)", "resourceCount", len(composedResources))
+	} else {
+		log.Debug("Using observed resources (steady state)", "resourceCount", len(composedResources))
+	}
+
+	cds, err := ComposedToYAML(composedResources)
 	if err != nil {
-		response.Fatal(rsp, errors.Wrap(err, "cannot convert observed composed resources to YAML"))
+		response.Fatal(rsp, errors.Wrap(err, "cannot convert composed resources to YAML"))
 		return rsp, nil
 	}
 
