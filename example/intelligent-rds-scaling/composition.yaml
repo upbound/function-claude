@@ -41,6 +41,7 @@ spec:
       apiVersion: claude.fn.crossplane.io/v1beta1
       kind: Prompt
       contextFields: ["metricsResult"]
+      maxTokens: 6144
       prompt: |
         You are an intelligent RDS scaling system. Analyze the CloudWatch metrics provided in the <context> tag and determine if any RDS instances need scaling adjustments.
 

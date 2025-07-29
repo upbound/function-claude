@@ -259,9 +259,17 @@ func (f *Function) RunFunction(ctx context.Context, req *fnv1.RunFunctionRequest
 			},
 		},
 	}
+	// Determine max tokens from input or use default
+	maxTokens := 4096 // Default value
+	if in.MaxTokens != nil && *in.MaxTokens > 0 {
+		maxTokens = *in.MaxTokens
+	}
+	
+	log.Debug("Using max tokens configuration", "maxTokens", maxTokens)
+
 	for {
 		message, err := client.Messages.New(ctx, anthropic.MessageNewParams{
-			MaxTokens: 4096, // Increased for large YAML content
+			MaxTokens: int64(maxTokens),
 			Model:     anthropic.ModelClaudeSonnet4_0,
 			System: []anthropic.TextBlockParam{
 				{

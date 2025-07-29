@@ -29,4 +29,10 @@ type Prompt struct {
 	// (e.g., ["metricsResult", "otherData"] to access context.metricsResult and context.otherData)
 	// +optional
 	ContextFields []string `json:"contextFields,omitempty"`
+	
+	// MaxTokens is the maximum number of output tokens Claude can generate
+	// Higher values support larger YAML responses but increase costs
+	// Default: 4096, Recommended: 4096-8192 for complex resources
+	// +optional
+	MaxTokens *int `json:"maxTokens,omitempty"`
 }
