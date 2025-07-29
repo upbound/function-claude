@@ -11,7 +11,7 @@ spec:
   # Step 1: Fetch RDS performance metrics from CloudWatch
   - step: fetch-rds-metrics
     functionRef:
-      name: function-rds-metrics
+      name: upbound-function-rds-metrics
     input:
       apiVersion: rdsmetrics.fn.crossplane.io/v1beta1
       kind: Input
@@ -48,6 +48,7 @@ spec:
         1. Only modify resources with kind "Instance" and apiVersion containing "rds"
         2. Preserve all existing resource configurations except for scaling-related fields
         3. Keep the "upbound.io/name" annotation unchanged for proper resource matching
+        4. Do NOT create or modify composite resources (XSQLInstance) - only modify Instance resources
         4. Make scaling decisions based on these thresholds:
            - High CPU (>80%): Consider increasing instance class
            - High Memory usage (FreeableMemory <20% of total): Consider memory-optimized instance
@@ -59,10 +60,34 @@ spec:
         - For storage issues: Increase allocatedStorage by 20GB increments
         - Only scale up, never scale down automatically for safety
 
+        DECISION REPORTING REQUIREMENT:
+        MANDATORY: You MUST include a structured decision summary in your response text using this EXACT format (copy the brackets and structure exactly):
+
+        [SCALING_DECISION]
+        DECISION: scale-up | no-change | scale-down
+        REASONING: Detailed explanation of why this decision was made
+        METRICS_ANALYZED: List of key metrics with values that influenced the decision
+        ACTIONS_PERFORMED: List of specific changes made to resources (or "No actions required")
+        NEXT_RECOMMENDATION: What should be monitored or done next
+        [/SCALING_DECISION]
+
+        EXAMPLE:
+        [SCALING_DECISION]
+        DECISION: no-change
+        REASONING: CPU utilization at 2.29% is well below the 80% threshold. Database has no active connections. All metrics indicate the system is operating with very low resource utilization.
+        METRICS_ANALYZED: CPUUtilization: 2.29% (threshold: 80%), DatabaseConnections: 0, FreeStorageSpace: 2.77GB, ReadIOPS: 1.3, WriteIOPS: 0.3
+        ACTIONS_PERFORMED: No scaling actions required - all metrics within normal operating ranges
+        NEXT_RECOMMENDATION: Continue monitoring metrics. Consider scaling up if CPU exceeds 80% or connections approach database limits
+        [/SCALING_DECISION]
+
+        This decision summary will be captured for audit and monitoring purposes.
+
         If metrics indicate scaling is needed, update the Instance.rds resource accordingly.
         If no scaling is needed, return the existing resources unchanged.
 
         Focus on the RDS Instance resource and ensure proper resource management.
+
+        CRITICAL: Before submitting your YAML, you MUST include the [SCALING_DECISION] block in your text response. Do not forget this step!
     credentials:
     - name: claude
       source: Secret

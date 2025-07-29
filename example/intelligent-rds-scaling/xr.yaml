@@ -1,7 +1,7 @@
 apiVersion: aws.platform.upbound.io/v1alpha1
 kind: XSQLInstance
 metadata:
-  name: my-intelligent-rds
+  name: intelligent-aws-database-yury
 spec:
   parameters:
     region: us-west-2

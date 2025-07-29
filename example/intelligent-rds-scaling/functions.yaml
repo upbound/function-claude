@@ -2,11 +2,9 @@
 apiVersion: pkg.crossplane.io/v1beta1
 kind: Function
 metadata:
-  name: function-rds-metrics
-  annotations:
-    render.crossplane.io/runtime: Development
+  name: upbound-function-rds-metrics
 spec:
-  package: function-rds-metrics
+  package: xpkg.upbound.io/upbound/function-rds-metrics:v0.0.3
 ---
 apiVersion: pkg.crossplane.io/v1beta1
 kind: Function

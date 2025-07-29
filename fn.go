@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 	"text/template"
+	"time"
 
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/anthropics/anthropic-sdk-go/option"
@@ -314,6 +315,12 @@ func (f *Function) RunFunction(ctx context.Context, req *fnv1.RunFunctionRequest
 					log.Debug("Received YAML manifests from Claude", "resourceCount", len(dcds))
 					rsp.Desired.Resources = dcds
 
+					// Extract Claude's decision-making from the text and add to XR status
+					if err := f.updateCompositeResourceWithDecision(req, rsp, message.Content); err != nil {
+						log.Debug("Failed to update composite resource with decision", "error", err)
+						// Don't fail the entire operation, just log the error
+					}
+
 					return rsp, nil
 
 				default:
@@ -447,4 +454,53 @@ func ContextToYAML(ctx *structpb.Struct, fields []string) (string, error) {
 
 	y, err := yaml.JSONToYAML(j)
 	return string(y), errors.Wrap(err, "cannot convert context data to YAML")
+}
+
+// updateCompositeResourceWithDecision extracts Claude's reasoning from text blocks
+// and adds it to the composite resource status
+func (f *Function) updateCompositeResourceWithDecision(req *fnv1.RunFunctionRequest, rsp *fnv1.RunFunctionResponse, content []anthropic.ContentBlockUnion) error {
+	// Extract all text from Claude's response
+	var reasoning strings.Builder
+	for _, block := range content {
+		if textBlock, ok := block.AsAny().(anthropic.TextBlock); ok {
+			reasoning.WriteString(textBlock.Text)
+			reasoning.WriteString("\n")
+		}
+	}
+
+	reasoningText := strings.TrimSpace(reasoning.String())
+	if reasoningText == "" {
+		return nil // No text to process
+	}
+
+	// Get the desired composite resource
+	dxr, err := request.GetDesiredCompositeResource(req)
+	if err != nil {
+		return errors.Wrap(err, "cannot get desired composite resource")
+	}
+
+	// Get current status
+	status := make(map[string]interface{})
+	if err := dxr.Resource.GetValueInto("status", &status); err != nil {
+		f.log.Debug("No existing status found, creating new one")
+	}
+
+	// Add Claude's decision-making to status
+	status["claudeDecision"] = map[string]interface{}{
+		"reasoning":  reasoningText,
+		"timestamp": time.Now().Format(time.RFC3339),
+	}
+
+	// Set the updated status
+	if err := dxr.Resource.SetValue("status", status); err != nil {
+		return errors.Wrap(err, "cannot set status in composite resource")
+	}
+
+	// Update the response with the modified composite resource
+	if err := response.SetDesiredCompositeResource(rsp, dxr); err != nil {
+		return errors.Wrap(err, "cannot set desired composite resource")
+	}
+
+	f.log.Debug("Updated composite resource with Claude's decision", "reasoning_length", len(reasoningText))
+	return nil
 }
