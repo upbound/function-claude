@@ -1,0 +1,256 @@
+apiVersion: rds.aws.upbound.io/v1beta3
+kind: Instance
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: RDSInstanceSmall
+    crossplane.io/external-create-failed: "2025-07-29T20:28:11Z"
+    crossplane.io/external-create-pending: "2025-07-29T20:28:11Z"
+    crossplane.io/external-create-succeeded: "2025-07-29T20:27:41Z"
+    crossplane.io/external-name: db-2UMN6A63S5652TYSKTPEPI7USU
+    upbound.io/name: RDSInstanceSmall
+  creationTimestamp: "2025-07-29T20:27:41Z"
+  finalizers:
+  - finalizer.managedresource.crossplane.io
+  generation: 4
+  labels:
+    crossplane.io/composite: intelligent-aws-database-yury
+  name: intelligent-aws-database-yury-plsvg
+#  ownerReferences:
+#  - apiVersion: aws.platform.upbound.io/v1alpha1
+#    blockOwnerDeletion: true
+#    controller: true
+#    kind: XSQLInstance
+#    name: intelligent-aws-database-yury
+#    uid: 107c0920-5f73-46eb-a978-f336836f7377
+  resourceVersion: "278933"
+  uid: cc318bfd-c893-4c45-83b6-4ad0fa6d8b19
+spec:
+  deletionPolicy: Delete
+  forProvider:
+    allocatedStorage: 5
+    autoGeneratePassword: true
+    autoMinorVersionUpgrade: true
+    availabilityZone: us-west-2b
+    backupTarget: region
+    backupWindow: 08:23-08:53
+    caCertIdentifier: rds-ca-rsa2048-g1
+    dbName: upbound
+    dbSubnetGroupName: intelligent-aws-database-yury-rlvpt
+    dbSubnetGroupNameRef:
+      name: intelligent-aws-database-yury-rlvpt
+    dbSubnetGroupNameSelector:
+      matchControllerRef: true
+    deleteAutomatedBackups: true
+    engine: mariadb
+    engineVersion: "10.11"
+    identifier: intelligent-aws-database-yury
+    instanceClass: db.t3.micro
+    licenseModel: general-public-license
+    maintenanceWindow: wed:06:19-wed:06:49
+    networkType: IPV4
+    optionGroupName: default:mariadb-10-11
+    parameterGroupName: default.mariadb10.11
+    passwordSecretRef:
+      key: password
+      name: mariadbsecret
+      namespace: default
+    port: 3306
+    publiclyAccessible: false
+    region: us-west-2
+    skipFinalSnapshot: true
+    storageType: gp2
+    tags:
+      crossplane-kind: instance.rds.aws.upbound.io
+      crossplane-name: intelligent-aws-database-yury-plsvg
+      crossplane-providerconfig: default
+    username: masteruser
+    vpcSecurityGroupIdRefs:
+    - name: intelligent-aws-database-yury-6476j
+    vpcSecurityGroupIdSelector:
+      matchLabels:
+        networks.aws.platform.upbound.io/network-id: intelligent-aws-database-yury
+    vpcSecurityGroupIds:
+    - sg-0628d8416fa2d1971
+  initProvider: {}
+  managementPolicies:
+  - '*'
+  providerConfigRef:
+    name: default
+  writeConnectionSecretToRef:
+    name: 107c0920-5f73-46eb-a978-f336836f7377-sql
+    namespace: default
+status:
+  atProvider:
+    address: intelligent-aws-database-yury.cxal1lomznba.us-west-2.rds.amazonaws.com
+    allocatedStorage: 5
+    applyImmediately: false
+    arn: arn:aws:rds:us-west-2:609897127049:db:intelligent-aws-database-yury
+    autoMinorVersionUpgrade: true
+    availabilityZone: us-west-2b
+    backupRetentionPeriod: 0
+    backupTarget: region
+    backupWindow: 08:23-08:53
+    caCertIdentifier: rds-ca-rsa2048-g1
+    characterSetName: ""
+    copyTagsToSnapshot: false
+    customIamInstanceProfile: ""
+    customerOwnedIpEnabled: false
+    dbName: upbound
+    dbSubnetGroupName: intelligent-aws-database-yury-rlvpt
+    dedicatedLogVolume: false
+    deleteAutomatedBackups: true
+    deletionProtection: false
+    domain: ""
+    domainAuthSecretArn: ""
+    domainFqdn: ""
+    domainIamRoleName: ""
+    domainOu: ""
+    endpoint: intelligent-aws-database-yury.cxal1lomznba.us-west-2.rds.amazonaws.com:3306
+    engine: mariadb
+    engineLifecycleSupport: ""
+    engineVersion: "10.11"
+    engineVersionActual: 10.11.11
+    hostedZoneId: Z1PVIF0B656C1W
+    iamDatabaseAuthenticationEnabled: false
+    id: db-2UMN6A63S5652TYSKTPEPI7USU
+    identifier: intelligent-aws-database-yury
+    identifierPrefix: ""
+    instanceClass: db.t3.micro
+    iops: 0
+    kmsKeyId: ""
+    latestRestorableTime: ""
+    licenseModel: general-public-license
+    maintenanceWindow: wed:06:19-wed:06:49
+    maxAllocatedStorage: 0
+    monitoringInterval: 0
+    monitoringRoleArn: ""
+    multiAz: false
+    ncharCharacterSetName: ""
+    networkType: IPV4
+    optionGroupName: default:mariadb-10-11
+    parameterGroupName: default.mariadb10.11
+    performanceInsightsEnabled: false
+    performanceInsightsKmsKeyId: ""
+    performanceInsightsRetentionPeriod: 0
+    port: 3306
+    publiclyAccessible: false
+    replicaMode: ""
+    replicateSourceDb: ""
+    resourceId: db-2UMN6A63S5652TYSKTPEPI7USU
+    skipFinalSnapshot: true
+    status: available
+    storageEncrypted: false
+    storageThroughput: 0
+    storageType: gp2
+    tags:
+      crossplane-kind: instance.rds.aws.upbound.io
+      crossplane-name: intelligent-aws-database-yury-plsvg
+      crossplane-providerconfig: default
+    tagsAll:
+      crossplane-kind: instance.rds.aws.upbound.io
+      crossplane-name: intelligent-aws-database-yury-plsvg
+      crossplane-providerconfig: default
+    timezone: ""
+    username: masteruser
+    vpcSecurityGroupIds:
+    - sg-0628d8416fa2d1971
+  conditions:
+  - lastTransitionTime: "2025-07-29T20:32:01Z"
+    reason: Available
+    status: "True"
+    type: Ready
+  - lastTransitionTime: "2025-07-29T20:28:44Z"
+    reason: ReconcileSuccess
+    status: "True"
+    type: Synced
+  - lastTransitionTime: "2025-07-29T20:31:59Z"
+    reason: Success
+    status: "True"
+    type: LastAsyncOperation
+---
+apiVersion: rds.aws.upbound.io/v1beta1
+kind: SubnetGroup
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: compositeSQLInstanceDbSubnetGroup
+    crossplane.io/external-create-pending: "2025-07-29T20:27:42Z"
+    crossplane.io/external-create-succeeded: "2025-07-29T20:27:42Z"
+    crossplane.io/external-name: intelligent-aws-database-yury-rlvpt
+    upbound.io/name: compositeSQLInstanceDbSubnetGroup
+  creationTimestamp: "2025-07-29T20:27:41Z"
+  finalizers:
+  - finalizer.managedresource.crossplane.io
+  generation: 3
+  labels:
+    crossplane.io/composite: intelligent-aws-database-yury
+  name: intelligent-aws-database-yury-rlvpt
+#  ownerReferences:
+#  - apiVersion: aws.platform.upbound.io/v1alpha1
+#    blockOwnerDeletion: true
+#    controller: true
+#    kind: XSQLInstance
+#    name: intelligent-aws-database-yury
+#    uid: 107c0920-5f73-46eb-a978-f336836f7377
+  resourceVersion: "278213"
+  uid: d2bcf752-7a47-4e4f-9e5c-cae15abc25e7
+spec:
+  deletionPolicy: Delete
+  forProvider:
+    description: An excellent formation of subnetworks.
+    region: us-west-2
+    subnetIdRefs:
+    - name: intelligent-aws-database-yury-9sgrq
+    - name: intelligent-aws-database-yury-qgsdm
+    - name: intelligent-aws-database-yury-s86vx
+    - name: intelligent-aws-database-yury-ztlr7
+    subnetIdSelector:
+      matchLabels:
+        networks.aws.platform.upbound.io/network-id: intelligent-aws-database-yury
+    subnetIds:
+    - subnet-05670d14447c7146d
+    - subnet-02d7855213f9c0e0d
+    - subnet-093fbd356fa48fd2f
+    - subnet-066c03d92f195fb95
+    tags:
+      crossplane-kind: subnetgroup.rds.aws.upbound.io
+      crossplane-name: intelligent-aws-database-yury-rlvpt
+      crossplane-providerconfig: default
+  initProvider: {}
+  managementPolicies:
+  - '*'
+  providerConfigRef:
+    name: default
+status:
+  atProvider:
+    arn: arn:aws:rds:us-west-2:609897127049:subgrp:intelligent-aws-database-yury-rlvpt
+    description: An excellent formation of subnetworks.
+    id: intelligent-aws-database-yury-rlvpt
+    subnetIds:
+    - subnet-02d7855213f9c0e0d
+    - subnet-05670d14447c7146d
+    - subnet-066c03d92f195fb95
+    - subnet-093fbd356fa48fd2f
+    supportedNetworkTypes:
+    - IPV4
+    tags:
+      crossplane-kind: subnetgroup.rds.aws.upbound.io
+      crossplane-name: intelligent-aws-database-yury-rlvpt
+      crossplane-providerconfig: default
+    tagsAll:
+      crossplane-kind: subnetgroup.rds.aws.upbound.io
+      crossplane-name: intelligent-aws-database-yury-rlvpt
+      crossplane-providerconfig: default
+    vpcId: vpc-061d1c9becc2a4d9c
+  conditions:
+  - lastTransitionTime: "2025-07-29T20:27:46Z"
+    reason: Available
+    status: "True"
+    type: Ready
+  - lastTransitionTime: "2025-07-29T20:27:42Z"
+    reason: ReconcileSuccess
+    status: "True"
+    type: Synced
+  - lastTransitionTime: "2025-07-29T20:27:44Z"
+    reason: Success
+    status: "True"
+    type: LastAsyncOperation

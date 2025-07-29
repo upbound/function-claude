@@ -261,7 +261,7 @@ func (f *Function) RunFunction(ctx context.Context, req *fnv1.RunFunctionRequest
 	}
 	for {
 		message, err := client.Messages.New(ctx, anthropic.MessageNewParams{
-			MaxTokens: 1024,
+			MaxTokens: 4096, // Increased for large YAML content
 			Model:     anthropic.ModelClaudeSonnet4_0,
 			System: []anthropic.TextBlockParam{
 				{

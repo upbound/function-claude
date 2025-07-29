@@ -87,7 +87,27 @@ spec:
 
         Focus on the RDS Instance resource and ensure proper resource management.
 
-        CRITICAL: Before submitting your YAML, you MUST include the [SCALING_DECISION] block in your text response. Do not forget this step!
+        MANDATORY TOOL USAGE FOR LARGE YAML:
+        
+        The <composed> section contains large YAML resources that you MUST submit via submit_yaml_stream tool.
+        
+        STEP-BY-STEP PROCESS:
+        1. Analyze metrics and provide [SCALING_DECISION] in your text response
+        2. Look at the <composed> section - it contains the resources you must submit
+        3. If scaling is needed: modify ONLY the Instance resource's instanceClass or allocatedStorage
+        4. If no scaling needed: submit resources exactly as provided
+        5. Call submit_yaml_stream tool with the complete YAML
+        
+        FOR TOOL SUBMISSION:
+        - The submit_yaml_stream tool requires ONE parameter: "yaml_stream"
+        - Copy ALL content between <composed> and </composed> tags
+        - Include EVERYTHING: all --- separators, all metadata, spec, status fields
+        - Maintain exact YAML formatting and indentation
+        
+        EXAMPLE TOOL CALL:
+        submit_yaml_stream({"yaml_stream": "---\napiVersion: rds.aws.upbound.io/v1beta3\nkind: Instance\n[COMPLETE YAML CONTENT HERE]\n---\napiVersion: rds.aws.upbound.io/v1beta1\nkind: SubnetGroup\n[COMPLETE YAML CONTENT HERE]"})
+        
+        CRITICAL: You MUST include the yaml_stream parameter with actual YAML content. Empty parameters {} will cause failure.
     credentials:
     - name: claude
       source: Secret
