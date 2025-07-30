@@ -201,16 +201,15 @@ func (f *Function) RunFunction(ctx context.Context, req *fnv1.RunFunctionRequest
 		return rsp, nil
 	}
 
-	// Get composed resources from both observed and desired state
-	// In first reconciliation, resources exist only in desired state
-	// In XR spec updates, desired state has the latest intended resources
-	composedResources := req.GetObserved().GetResources()
+	// Always use desired resources to get the latest XR spec changes
+	// Desired state reflects the current intent including parameter updates
+	composedResources := req.GetDesired().GetResources()
 	if len(composedResources) == 0 {
-		// Fallback to desired resources (first reconciliation scenario)
-		composedResources = req.GetDesired().GetResources()
-		log.Debug("Using desired resources (first reconciliation)", "resourceCount", len(composedResources))
+		// Fallback to observed resources if no desired state exists
+		composedResources = req.GetObserved().GetResources()
+		log.Debug("Using observed resources (no desired state)", "resourceCount", len(composedResources))
 	} else {
-		log.Debug("Using observed resources (steady state)", "resourceCount", len(composedResources))
+		log.Debug("Using desired resources (latest intent)", "resourceCount", len(composedResources))
 	}
 
 	cds, err := ComposedToYAML(composedResources)
