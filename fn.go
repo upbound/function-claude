@@ -56,8 +56,10 @@ type agentInvoker interface {
 	Invoke(ctx context.Context, key, system, prompt string) (string, error)
 }
 
+// Option modifies the underlying Function.
 type Option func(*Function)
 
+// WithLogger overrides the default logger.
 func WithLogger(log logging.Logger) Option {
 	return func(f *Function) {
 		f.log = log
@@ -202,15 +204,27 @@ func ComposedFromYAML(y string) (map[string]*fnv1.Resource, error) {
 	return out, nil
 }
 
-func resourceFromJSON(j string) (map[string]*fnv1.Resource, error) {
+// resourceFrom produces a map of resource name to resources derived from the
+// given string. If the string is neither JSON nor YAML, an error is returned.
+func (f *Function) resourceFrom(i string) (map[string]*fnv1.Resource, error) {
 	out := make(map[string]*fnv1.Resource)
 
+	b := []byte(i)
+
+	// Is i YAML?
+	jb, err := yaml.YAMLToJSON(b)
+	if err != nil {
+		f.log.Debug("error seen while attempting to convert YAML to JSON", "error", err)
+		// i doesn't appear to be YAML, maybe it's JSON...
+		jb = b
+	}
+
 	s := &structpb.Struct{}
-	if err := protojson.Unmarshal([]byte(j), s); err != nil {
+	if err := protojson.Unmarshal(jb, s); err != nil {
 		return nil, errors.Wrap(err, "cannot parse JSON")
 	}
 
-	name := gjson.GetBytes([]byte(j), "metadata.name").String()
+	name := gjson.GetBytes(jb, "metadata.name").String()
 	out[name] = &fnv1.Resource{Resource: s}
 
 	return out, nil
@@ -345,10 +359,10 @@ func (f *Function) operationPipeline(ctx context.Context, log logging.Logger, d 
 		return d.rsp, err
 	}
 
-	desired, err := resourceFromJSON(resp)
+	desired, err := f.resourceFrom(resp)
 	if err != nil {
-		response.Fatal(d.rsp, errors.Wrap(err, "failed to derive resource from JSON"))
-		return d.rsp, err
+		// we didn't get a JSON based response from claude
+		log.Debug("failed to get a JSON response back, no desired resources will be sent back to crossplane")
 	}
 
 	response.ConditionTrue(d.rsp, "FunctionSuccess", "Success").TargetCompositeAndClaim()

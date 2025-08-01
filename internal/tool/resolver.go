@@ -33,6 +33,7 @@ type Resolver struct {
 // Option modifies the underlying Resolver.
 type Option func(*Resolver)
 
+// WithLogger overrides the underlying logger for the Resolver.
 func WithLogger(log logging.Logger) Option {
 	return func(r *Resolver) {
 		r.log = log
@@ -114,9 +115,9 @@ func (r *Resolver) FromEnvVars() map[string]Config {
 		if !strings.HasPrefix(e, "MCP_SERVER_TOOL_") {
 			continue // not an env var that we're interested in.
 		}
-		k, new := r.parse(e)
+		k, newc := r.parse(e)
 		current := cfgs[k]
-		cfgs[k] = r.merge(current, new)
+		cfgs[k] = r.merge(current, newc)
 	}
 
 	// validate configs before setting as tools
@@ -157,15 +158,15 @@ func (r *Resolver) parse(e string) (string, Config) {
 
 // merge two MCP server Configs. If the current Config has an unset value, the
 // value from new is applied.
-func (r *Resolver) merge(current, new Config) Config {
-	if current.Transport == "" && new.Transport != "" {
-		current.Transport = new.Transport
+func (r *Resolver) merge(currentc, newc Config) Config {
+	if currentc.Transport == "" && newc.Transport != "" {
+		currentc.Transport = newc.Transport
 	}
-	if current.BaseURL == "" && new.BaseURL != "" {
-		current.BaseURL = new.BaseURL
+	if currentc.BaseURL == "" && newc.BaseURL != "" {
+		currentc.BaseURL = newc.BaseURL
 	}
 
-	return current
+	return currentc
 }
 
 type environGetter interface {
@@ -174,6 +175,8 @@ type environGetter interface {
 
 type osEnvironGetter struct{}
 
+// Environ returns the result of retrieving the environment variables from the
+// underlying OS.
 func (o *osEnvironGetter) Environ() []string {
 	return os.Environ()
 }
