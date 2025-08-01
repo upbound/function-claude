@@ -25,6 +25,7 @@ import (
 	"github.com/crossplane/function-sdk-go/response"
 
 	"github.com/upbound/function-claude/input/v1alpha1"
+	"github.com/upbound/function-claude/internal/tool"
 )
 
 const (
@@ -55,12 +56,30 @@ type agentInvoker interface {
 	Invoke(ctx context.Context, key, system, prompt string) (string, error)
 }
 
-// NewFunction creates a new function powered by Claude.
-func NewFunction(log logging.Logger) *Function {
-	return &Function{
-		ai:  &agent{},
-		log: log,
+type Option func(*Function)
+
+func WithLogger(log logging.Logger) Option {
+	return func(f *Function) {
+		f.log = log
 	}
+}
+
+// NewFunction creates a new function powered by Claude.
+func NewFunction(opts ...Option) *Function {
+	f := &Function{
+		log: logging.NewNopLogger(),
+	}
+
+	for _, o := range opts {
+		o(f)
+	}
+
+	f.ai = &agent{
+		log: f.log,
+		res: tool.NewResolver(tool.WithLogger(f.log)),
+	}
+
+	return f
 }
 
 // RunFunction runs the Function.
@@ -339,7 +358,10 @@ func (f *Function) operationPipeline(ctx context.Context, log logging.Logger, d 
 	return d.rsp, nil
 }
 
-type agent struct{}
+type agent struct {
+	log logging.Logger
+	res *tool.Resolver
+}
 
 // Invoke makes an external call to the configured LLM with the supplied
 // credential key, system and user prompts.
@@ -353,9 +375,8 @@ func (a *agent) Invoke(ctx context.Context, key, system, prompt string) (string,
 
 	agent := agents.NewOneShotAgent(
 		model,
-		// NOTE(tnthornton) Placeholder for future integrations with external Tools.
-		[]tools.Tool{},
-		agents.WithMaxIterations(3),
+		a.tools(ctx),
+		agents.WithMaxIterations(20),
 	)
 
 	return chains.Run(
@@ -364,4 +385,12 @@ func (a *agent) Invoke(ctx context.Context, key, system, prompt string) (string,
 		fmt.Sprintf("%s\n%s", system, prompt),
 		chains.WithTemperature(float64(0)),
 	)
+}
+
+func (a *agent) tools(ctx context.Context) []tools.Tool {
+	cfgs := a.res.FromEnvVars()
+	if len(cfgs) == 0 {
+		a.log.Debug("no valid mcp server configurations found")
+	}
+	return a.res.Resolve(ctx, cfgs)
 }
