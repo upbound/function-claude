@@ -183,6 +183,20 @@ func ComposedFromYAML(y string) (map[string]*fnv1.Resource, error) {
 	return out, nil
 }
 
+func resourceFromJSON(j string) (map[string]*fnv1.Resource, error) {
+	out := make(map[string]*fnv1.Resource)
+
+	s := &structpb.Struct{}
+	if err := protojson.Unmarshal([]byte(j), s); err != nil {
+		return nil, errors.Wrap(err, "cannot parse JSON")
+	}
+
+	name := gjson.GetBytes([]byte(j), "metadata.name").String()
+	out[name] = &fnv1.Resource{Resource: s}
+
+	return out, nil
+}
+
 // attempts to identify if the function is operating within a composition
 // pipeline or not by looking to see if a composite was sent with the request.
 func inCompositionPipeline(req *fnv1.RunFunctionRequest) bool {
@@ -312,8 +326,16 @@ func (f *Function) operationPipeline(ctx context.Context, log logging.Logger, d 
 		return d.rsp, err
 	}
 
+	desired, err := resourceFromJSON(resp)
+	if err != nil {
+		response.Fatal(d.rsp, errors.Wrap(err, "failed to derive resource from JSON"))
+		return d.rsp, err
+	}
+
 	response.ConditionTrue(d.rsp, "FunctionSuccess", "Success").TargetCompositeAndClaim()
 	response.Normal(d.rsp, resp)
+
+	d.rsp.Desired.Resources = desired
 	return d.rsp, nil
 }
 
