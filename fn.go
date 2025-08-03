@@ -91,6 +91,12 @@ func (f *Function) RunFunction(ctx context.Context, req *fnv1.RunFunctionRequest
 
 	rsp := response.To(req, response.DefaultTTL)
 
+	if f.shouldIgnore(req) {
+		response.ConditionTrue(rsp, "FunctionSuccess", "Success").TargetCompositeAndClaim()
+		response.Normal(rsp, "received an ignored resource, skipping")
+		return rsp, nil
+	}
+
 	in := &v1alpha1.Prompt{}
 	if err := request.GetInput(req, in); err != nil {
 		response.Fatal(rsp, errors.Wrapf(err, "cannot get Function input from %T", req))
@@ -370,6 +376,20 @@ func (f *Function) operationPipeline(ctx context.Context, log logging.Logger, d 
 
 	d.rsp.Desired.Resources = desired
 	return d.rsp, nil
+}
+
+// shouldIgnore returns true if the caller has communicated that the resource
+// is an ignored resource. False otherwise.
+func (f *Function) shouldIgnore(req *fnv1.RunFunctionRequest) bool {
+	fctx := req.GetContext()
+	ignored, ok := fctx.AsMap()["ops.upbound.io/ignored-resource"]
+	if ok {
+		i, ok := ignored.(bool)
+		if ok && i {
+			return true
+		}
+	}
+	return false
 }
 
 type agent struct {
