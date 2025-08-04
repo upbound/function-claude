@@ -37,7 +37,7 @@ func TestMerge(t *testing.T) {
 			},
 		},
 		"CurrentBaseURLUnset": {
-			reason: "If new has a transport, then current's transport should be set.",
+			reason: "If new has a baseURL, then current's baseURL should be set.",
 			args: args{
 				current: Config{
 					BaseURL: "",
