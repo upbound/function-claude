@@ -33,6 +33,43 @@ func TestRunFunction(t *testing.T) {
 		args   args
 		want   want
 	}{
+		"IgnoredResource": {
+			reason: "We should return early if the incoming resource should be ignored.",
+			args: args{
+				req: &fnv1.RunFunctionRequest{
+					Context: &structpb.Struct{Fields: map[string]*structpb.Value{
+						"ops.upbound.io/ignored-resource": structpb.NewBoolValue(true),
+					}},
+				},
+			},
+			want: want{
+				rsp: &fnv1.RunFunctionResponse{
+					Context: &structpb.Struct{Fields: map[string]*structpb.Value{
+						"ops.upbound.io/ignored-resource": structpb.NewBoolValue(true),
+					}},
+					Meta: &fnv1.ResponseMeta{
+						Ttl: &durationpb.Duration{
+							Seconds: 60,
+						},
+					},
+					Conditions: []*fnv1.Condition{
+						{
+							Type:   "FunctionSuccess",
+							Status: fnv1.Status_STATUS_CONDITION_TRUE,
+							Reason: "Success",
+							Target: fnv1.Target_TARGET_COMPOSITE_AND_CLAIM.Enum(),
+						},
+					},
+					Results: []*fnv1.Result{
+						{
+							Severity: fnv1.Severity_SEVERITY_NORMAL,
+							Message:  "received an ignored resource, skipping",
+							Target:   fnv1.Target_TARGET_COMPOSITE.Enum(),
+						},
+					},
+				},
+			},
+		},
 		"ResponseIsReturned": {
 			reason: "The Function should return a fatal result if credential cannot be found.",
 			args: args{
