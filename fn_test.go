@@ -39,7 +39,7 @@ func TestRunFunction(t *testing.T) {
 				req: &fnv1.RunFunctionRequest{
 					Meta: &fnv1.RequestMeta{Tag: "hello"},
 					Input: resource.MustStructJSON(`{
-						"apiVersion": "openai.fn.upbound.io/v1alpha1",
+						"apiVersion": "claude.fn.upbound.io/v1alpha1",
 						"kind": "Prompt",
 						"systemPrompt": "I'm a system",
 						"userPrompt": "I'm a user"
@@ -76,7 +76,7 @@ metadata:
 				req: &fnv1.RunFunctionRequest{
 					Meta: &fnv1.RequestMeta{Tag: "hello"},
 					Input: resource.MustStructJSON(`{
-								"apiVersion": "openai.fn.upbound.io/v1alpha1",
+								"apiVersion": "claude.fn.upbound.io/v1alpha1",
 								"kind": "Prompt",
 								"systemPrompt": "I'm a system",
 								"userPrompt": "I'm a user"
@@ -153,7 +153,7 @@ metadata:
 				req: &fnv1.RunFunctionRequest{
 					Meta: &fnv1.RequestMeta{Tag: "hello"},
 					Input: resource.MustStructJSON(`{
-						"apiVersion": "openai.fn.upbound.io/v1alpha1",
+						"apiVersion": "claude.fn.upbound.io/v1alpha1",
 						"kind": "Prompt",
 						"systemPrompt": "I'm a system",
 						"userPrompt": "I'm a user"
@@ -168,6 +168,7 @@ metadata:
 							},
 						},
 					},
+					Desired: &fnv1.State{},
 				},
 			},
 			want: want{
@@ -189,6 +190,7 @@ metadata:
 						Reason: "Success",
 						Target: fnv1.Target_TARGET_COMPOSITE_AND_CLAIM.Enum(),
 					}},
+					Desired: &fnv1.State{},
 				},
 			},
 		},
@@ -221,6 +223,87 @@ func mockCredentials() map[string]*fnv1.Credentials {
 				},
 			},
 		},
+	}
+}
+
+func TestResourceFrom(t *testing.T) {
+	type args struct {
+		resp string
+	}
+	type want struct {
+		resource map[string]*fnv1.Resource
+		err      error
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"String": {
+			reason: "We should return an error if we received a string that is neither JSON nor YAML",
+			args: args{
+				resp: "some-response",
+			},
+			want: want{
+				err: cmpopts.AnyError,
+			},
+		},
+		"ValidJSON": {
+			reason: "We should not return an error if we processed valid JSON",
+			args: args{
+				resp: `{}`,
+			},
+			want: want{
+				resource: map[string]*fnv1.Resource{
+					"": {Resource: &structpb.Struct{}},
+				},
+			},
+		},
+		"ValidYAML": {
+			reason: "We should not return an error if we processed valid YAML",
+			args: args{
+				resp: `a: b`,
+			},
+			want: want{
+				resource: map[string]*fnv1.Resource{
+					"": {Resource: &structpb.Struct{Fields: map[string]*structpb.Value{"a": structpb.NewStringValue("b")}}},
+				},
+			},
+		},
+		"InvalidJSON": {
+			reason: "We should return an error if we attempt to process invalid JSON",
+			args: args{
+				resp: `{a: `,
+			},
+			want: want{
+				err: cmpopts.AnyError,
+			},
+		},
+		"InvalidYAML": {
+			reason: "We should return an error if we attempt to process invalid YAML",
+			args: args{
+				resp: ``,
+			},
+			want: want{
+				err: cmpopts.AnyError,
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			f := &Function{log: logging.NewNopLogger()}
+			got, err := f.resourceFrom(tc.args.resp)
+
+			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
+				t.Errorf("%s\nf.RunFunction(...): -want err, +got err:\n%s", tc.reason, diff)
+			}
+
+			if diff := cmp.Diff(tc.want.resource, got, protocmp.Transform()); diff != "" {
+				t.Errorf("%s\nf.RunFunction(...): -want rsp, +got rsp:\n%s", tc.reason, diff)
+			}
+		})
 	}
 }
 
