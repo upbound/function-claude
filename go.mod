@@ -6,7 +6,7 @@ toolchain go1.24.4
 
 require (
 	github.com/alecthomas/kong v0.9.0
-	github.com/crossplane/function-sdk-go v0.5.0-rc.0.0.20250715215746-ca27889cd196
+	github.com/crossplane/function-sdk-go v0.5.0-rc.0.0.20250805171053-2910b68d255d
 	github.com/google/go-cmp v0.6.0
 	github.com/i2y/langchaingo-mcp-adapter v0.0.0-20250623114610-a01671e1c8df
 	github.com/mark3labs/mcp-go v0.36.0
