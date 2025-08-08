@@ -112,6 +112,7 @@ func (f *Function) RunFunction(ctx context.Context, req *fnv1.RunFunctionRequest
 		response.Normal(rsp, "received an ignored resource, skipping")
 		return rsp, nil
 	}
+	f.log.Info("shouldn't ignore")
 
 	in := &v1alpha1.Prompt{}
 	if err := request.GetInput(req, in); err != nil {
@@ -399,12 +400,16 @@ func (f *Function) operationPipeline(ctx context.Context, log logging.Logger, d 
 func (f *Function) shouldIgnore(req *fnv1.RunFunctionRequest) bool {
 	fctx := req.GetContext()
 	ignored, ok := fctx.AsMap()["ops.upbound.io/ignored-resource"]
+	f.log.Info("got value from context", "ignored", ignored)
 	if ok {
+		f.log.Info("ok")
 		i, ok := ignored.(bool)
 		if ok && i {
+			f.log.Info("ok and ignored == true")
 			return true
 		}
 	}
+	f.log.Info("shouldIgnore=shouldn't ignore")
 	return false
 }
 
