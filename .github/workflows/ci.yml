@@ -218,4 +218,5 @@ jobs:
           ANTHROPIC_API_KEY_B64: ${{ secrets.ANTHROPIC_API_KEY_B64 }}
 
       - name: Run composition tests
+        if: env.XPKG_ACCESS_ID != ''
         run: up test run tests/*
