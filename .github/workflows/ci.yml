@@ -147,7 +147,7 @@ jobs:
   # pushes them as a multi-platform package. We only push the package it the
   # XPKG_ACCESS_ID and XPKG_TOKEN secrets were provided.
   push:
-    if: ${{ github.actor != 'dependabot[bot]' && !contains(github.ref, 'release-') }} 
+    if: ${{ github.actor != 'dependabot[bot]' && !contains(github.ref, 'release-') }}
     runs-on: ubuntu-24.04
     needs:
       - build
@@ -197,10 +197,9 @@ jobs:
         uses: upbound/action-up@v1
         with:
           skip-login: true
-          channel: main
-          version: v0.39.0-384.g0a0c8634 # we need compositionTests with functionCredentialsPath
+
       - name: Update package version in upbound.yaml
-        run: | 
+        run: |
           sed -i "s/version: v0.0.1/version: ${{ env.XPKG_VERSION }}/" upbound.yaml
 
       - name: Add secret.yaml
