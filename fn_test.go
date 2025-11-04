@@ -116,7 +116,7 @@ func TestRunFunction(t *testing.T) {
 			reason: "We should go through the composition pipeline without error.",
 			args: args{
 				ai: &mockAgentInvoker{
-					InvokeFn: func(_ context.Context, _, _, _ string) (string, error) {
+					InvokeFn: func(_ context.Context, _, _, _, _ string) (string, error) {
 						return `---
 apiVersion: some.group/v1
 metadata:
@@ -199,7 +199,7 @@ metadata:
 			reason: "We should go through the operation pipeline without error.",
 			args: args{
 				ai: &mockAgentInvoker{
-					InvokeFn: func(_ context.Context, _, _, _ string) (string, error) {
+					InvokeFn: func(_ context.Context, _, _, _, _ string) (string, error) {
 						return `some-response`, nil
 					},
 				},
@@ -361,9 +361,9 @@ func TestResourceFrom(t *testing.T) {
 }
 
 type mockAgentInvoker struct {
-	InvokeFn func(ctx context.Context, key, system, prompt string) (string, error)
+	InvokeFn func(ctx context.Context, key, system, prompt, modelName string) (string, error)
 }
 
-func (m *mockAgentInvoker) Invoke(ctx context.Context, key, system, prompt string) (string, error) {
-	return m.InvokeFn(ctx, key, system, prompt)
+func (m *mockAgentInvoker) Invoke(ctx context.Context, key, system, prompt, modelName string) (string, error) {
+	return m.InvokeFn(ctx, key, system, prompt, modelName)
 }

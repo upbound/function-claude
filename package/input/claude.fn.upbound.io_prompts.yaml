@@ -38,6 +38,12 @@ spec:
             type: string
           metadata:
             type: object
+          modelName:
+            description: |-
+              ModelName is the optional Anthropic model name to use (e.g., "claude-sonnet-4-5-20250929").
+              If not specified, the default model will be used.
+              See https://docs.claude.com/en/docs/about-claude/models/overview for available models.
+            type: string
           systemPrompt:
             description: SytemPrompt to send to Claude.
             type: string
