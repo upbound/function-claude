@@ -69,7 +69,7 @@ type Function struct {
 // agentInvoker is a consumer interface for working with agents. Notably this
 // is helpful for writing tests that mock the agent invocations.
 type agentInvoker interface {
-	Invoke(ctx context.Context, key, system, prompt string) (string, error)
+	Invoke(ctx context.Context, key, system, prompt, modelName string) (string, error)
 }
 
 // Option modifies the underlying Function.
@@ -305,7 +305,7 @@ func (f *Function) compositionPipeline(ctx context.Context, log logging.Logger, 
 
 	log.Debug("Using prompt", "prompt", vars.String())
 
-	resp, err := f.ai.Invoke(ctx, d.cred, d.in.SystemPrompt, vars.String())
+	resp, err := f.ai.Invoke(ctx, d.cred, d.in.SystemPrompt, vars.String(), d.in.ModelName)
 
 	if err != nil {
 		response.Fatal(d.rsp, errors.Wrap(err, "failed to run chain"))
@@ -374,7 +374,7 @@ func (f *Function) operationPipeline(ctx context.Context, log logging.Logger, d 
 
 	log.Debug("Using prompt", "prompt", vars.String())
 
-	resp, err := f.ai.Invoke(ctx, d.cred, d.in.SystemPrompt, vars.String())
+	resp, err := f.ai.Invoke(ctx, d.cred, d.in.SystemPrompt, vars.String(), d.in.ModelName)
 
 	if err != nil {
 		response.Fatal(d.rsp, errors.Wrap(err, "failed to run chain"))
@@ -415,10 +415,15 @@ type agent struct {
 
 // Invoke makes an external call to the configured LLM with the supplied
 // credential key, system and user prompts.
-func (a *agent) Invoke(ctx context.Context, key, system, prompt string) (string, error) {
-	model, err := anthropicllm.New(
+func (a *agent) Invoke(ctx context.Context, key, system, prompt, modelName string) (string, error) {
+	opts := []anthropicllm.Option{
 		anthropicllm.WithToken(key),
-	)
+	}
+	if modelName != "" {
+		opts = append(opts, anthropicllm.WithModel(modelName))
+	}
+
+	model, err := anthropicllm.New(opts...)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to build model")
 	}
