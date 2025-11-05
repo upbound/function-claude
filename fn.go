@@ -423,13 +423,12 @@ type agent struct {
 func (a *agent) Invoke(ctx context.Context, key, system, prompt, inputModel string) (string, error) {
 	opts := []anthropicllm.Option{
 		anthropicllm.WithToken(key),
-		// Override langchain's default.
-		anthropicllm.WithModel(a.model),
 	}
-
+	m := a.model
 	if inputModel != "" {
-		opts = append(opts, anthropicllm.WithModel(inputModel))
+		m = inputModel
 	}
+	opts = append(opts, anthropicllm.WithModel(m))
 
 	model, err := anthropicllm.New(opts...)
 	if err != nil {
