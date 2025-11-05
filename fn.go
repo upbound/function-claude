@@ -47,6 +47,8 @@ import (
 const (
 	credName = "claude"
 	credKey  = "ANTHROPIC_API_KEY"
+
+	defaultModel = "claude-sonnet-4-5-20250929"
 )
 
 // Variables used to form the prompt.
@@ -93,8 +95,9 @@ func NewFunction(opts ...Option) *Function {
 	}
 
 	f.ai = &agent{
-		log: f.log,
-		res: tool.NewResolver(tool.WithLogger(f.log)),
+		log:   f.log,
+		res:   tool.NewResolver(tool.WithLogger(f.log)),
+		model: defaultModel,
 	}
 
 	return f
@@ -411,16 +414,21 @@ func (f *Function) shouldIgnore(req *fnv1.RunFunctionRequest) bool {
 type agent struct {
 	log logging.Logger
 	res *tool.Resolver
+
+	model string
 }
 
 // Invoke makes an external call to the configured LLM with the supplied
 // credential key, system and user prompts.
-func (a *agent) Invoke(ctx context.Context, key, system, prompt, modelName string) (string, error) {
+func (a *agent) Invoke(ctx context.Context, key, system, prompt, inputModel string) (string, error) {
 	opts := []anthropicllm.Option{
 		anthropicllm.WithToken(key),
+		// Override langchain's default.
+		anthropicllm.WithModel(a.model),
 	}
-	if modelName != "" {
-		opts = append(opts, anthropicllm.WithModel(modelName))
+
+	if inputModel != "" {
+		opts = append(opts, anthropicllm.WithModel(inputModel))
 	}
 
 	model, err := anthropicllm.New(opts...)
