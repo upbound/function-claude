@@ -419,9 +419,10 @@ func (a *agent) Invoke(ctx context.Context, key, system, prompt, modelName strin
 	opts := []anthropicllm.Option{
 		anthropicllm.WithToken(key),
 	}
-	if modelName != "" {
-		opts = append(opts, anthropicllm.WithModel(modelName))
+	if modelName == "" {
+		modelName = "claude-sonnet-4-5-20250929"
 	}
+	opts = append(opts, anthropicllm.WithModel(modelName))
 
 	model, err := anthropicllm.New(opts...)
 	if err != nil {
