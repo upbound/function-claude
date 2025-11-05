@@ -7,7 +7,10 @@ Use natural language prompts to compose resources.
 
 ## Model Support
 
-This function supports all [Anthropic Claude models](https://docs.claude.com/en/docs/about-claude/models/overview). Configure the model via the optional `modelName` field in the input. If not specified, the default model will be used.
+This function supports all [Anthropic Claude
+models](https://docs.claude.com/en/docs/about-claude/models/overview). Configure
+the model via the optional `modelName` field in the input. If not specified, the
+default model will be used.
 
 ```yaml
 apiVersion: apiextensions.crossplane.io/v1
