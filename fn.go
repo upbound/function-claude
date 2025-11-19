@@ -234,6 +234,14 @@ func ComposedFromYAML(y string) (map[string]*fnv1.Resource, error) {
 func (f *Function) resourceFrom(i string) (map[string]*fnv1.Resource, error) {
 	out := make(map[string]*fnv1.Resource)
 
+	// Strip markdown code blocks if present (LLMs sometimes wrap output in markdown)
+	i = strings.TrimSpace(i)
+	i = strings.TrimPrefix(i, "```json")
+	i = strings.TrimPrefix(i, "```yaml")
+	i = strings.TrimPrefix(i, "```")
+	i = strings.TrimSuffix(i, "```")
+	i = strings.TrimSpace(i)
+
 	b := []byte(i)
 
 	// Is i YAML?
