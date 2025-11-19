@@ -18,6 +18,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -342,6 +343,106 @@ func TestResourceFrom(t *testing.T) {
 				err: cmpopts.AnyError,
 			},
 		},
+		"JSONWithMarkdownCodeBlock": {
+			reason: "We should strip markdown code blocks and process the JSON",
+			args: args{
+				resp: "```json\n{\"metadata\": {\"name\": \"test\"}}\n```",
+			},
+			want: want{
+				resource: map[string]*fnv1.Resource{
+					"test": {
+						Resource: &structpb.Struct{
+							Fields: map[string]*structpb.Value{
+								"metadata": {
+									Kind: &structpb.Value_StructValue{
+										StructValue: &structpb.Struct{
+											Fields: map[string]*structpb.Value{
+												"name": structpb.NewStringValue("test"),
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		"YAMLWithMarkdownCodeBlock": {
+			reason: "We should strip markdown code blocks and process the YAML",
+			args: args{
+				resp: "```yaml\nmetadata:\n  name: test\n```",
+			},
+			want: want{
+				resource: map[string]*fnv1.Resource{
+					"test": {
+						Resource: &structpb.Struct{
+							Fields: map[string]*structpb.Value{
+								"metadata": {
+									Kind: &structpb.Value_StructValue{
+										StructValue: &structpb.Struct{
+											Fields: map[string]*structpb.Value{
+												"name": structpb.NewStringValue("test"),
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		"GenericMarkdownCodeBlock": {
+			reason: "We should strip generic markdown code blocks",
+			args: args{
+				resp: "```\n{\"metadata\": {\"name\": \"test\"}}\n```",
+			},
+			want: want{
+				resource: map[string]*fnv1.Resource{
+					"test": {
+						Resource: &structpb.Struct{
+							Fields: map[string]*structpb.Value{
+								"metadata": {
+									Kind: &structpb.Value_StructValue{
+										StructValue: &structpb.Struct{
+											Fields: map[string]*structpb.Value{
+												"name": structpb.NewStringValue("test"),
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		"MarkdownWithWhitespace": {
+			reason: "We should strip markdown and trim whitespace",
+			args: args{
+				resp: "  \n```json\n{\"metadata\": {\"name\": \"test\"}}\n```\n  ",
+			},
+			want: want{
+				resource: map[string]*fnv1.Resource{
+					"test": {
+						Resource: &structpb.Struct{
+							Fields: map[string]*structpb.Value{
+								"metadata": {
+									Kind: &structpb.Value_StructValue{
+										StructValue: &structpb.Struct{
+											Fields: map[string]*structpb.Value{
+												"name": structpb.NewStringValue("test"),
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for name, tc := range cases {
@@ -355,6 +456,117 @@ func TestResourceFrom(t *testing.T) {
 
 			if diff := cmp.Diff(tc.want.resource, got, protocmp.Transform()); diff != "" {
 				t.Errorf("%s\nf.RunFunction(...): -want rsp, +got rsp:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestExtractJSONFromAgentError(t *testing.T) {
+	type args struct {
+		err error
+	}
+	type want struct {
+		extracted string
+		ok        bool
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"NilError": {
+			reason: "Should return false for nil error",
+			args: args{
+				err: nil,
+			},
+			want: want{
+				extracted: "",
+				ok:        false,
+			},
+		},
+		"UnrelatedError": {
+			reason: "Should return false for unrelated errors",
+			args: args{
+				err: errors.New("some other error"),
+			},
+			want: want{
+				extracted: "",
+				ok:        false,
+			},
+		},
+		"AgentErrorWithJSON": {
+			reason: "Should extract clean JSON from agent parsing error",
+			args: args{
+				err: errors.New("unable to parse agent output: {\"apiVersion\": \"v1\", \"kind\": \"Test\"}"),
+			},
+			want: want{
+				extracted: "{\"apiVersion\": \"v1\", \"kind\": \"Test\"}",
+				ok:        true,
+			},
+		},
+		"AgentErrorWithMarkdownJSON": {
+			reason: "Should extract and strip markdown from agent error",
+			args: args{
+				err: errors.New("unable to parse agent output: ```json\n{\"apiVersion\": \"v1\"}\n```"),
+			},
+			want: want{
+				extracted: "{\"apiVersion\": \"v1\"}",
+				ok:        true,
+			},
+		},
+		"AgentErrorWithMarkdownYAML": {
+			reason: "Should extract and strip markdown YAML blocks",
+			args: args{
+				err: errors.New("unable to parse agent output: ```yaml\napiVersion: v1\n```"),
+			},
+			want: want{
+				extracted: "apiVersion: v1",
+				ok:        true,
+			},
+		},
+		"AgentErrorWithGenericMarkdown": {
+			reason: "Should extract and strip generic markdown blocks",
+			args: args{
+				err: errors.New("unable to parse agent output: ```\n{\"test\": true}\n```"),
+			},
+			want: want{
+				extracted: "{\"test\": true}",
+				ok:        true,
+			},
+		},
+		"AgentErrorWithWhitespace": {
+			reason: "Should trim whitespace from extracted content",
+			args: args{
+				err: errors.New("unable to parse agent output:   \n{\"test\": true}\n  "),
+			},
+			want: want{
+				extracted: "{\"test\": true}",
+				ok:        true,
+			},
+		},
+		"WrappedAgentError": {
+			reason: "Should extract even if error message is wrapped (makes it more robust)",
+			args: args{
+				err: errors.New("failed to run: unable to parse agent output: {\"test\": true}"),
+			},
+			want: want{
+				extracted: "{\"test\": true}",
+				ok:        true,
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			extracted, ok := extractJSONFromAgentError(tc.args.err)
+
+			if ok != tc.want.ok {
+				t.Errorf("%s\nextractJSONFromAgentError(...): got ok=%v, want ok=%v", tc.reason, ok, tc.want.ok)
+			}
+
+			if extracted != tc.want.extracted {
+				t.Errorf("%s\nextractJSONFromAgentError(...): got extracted=%q, want extracted=%q", tc.reason, extracted, tc.want.extracted)
 			}
 		})
 	}
