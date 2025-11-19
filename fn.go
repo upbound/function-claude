@@ -449,12 +449,33 @@ func (a *agent) Invoke(ctx context.Context, key, system, prompt, inputModel stri
 		agents.WithMaxIterations(20),
 	)
 
-	return chains.Run(
+	resp, err := chains.Run(
 		ctx,
 		agents.NewExecutor(agent),
 		fmt.Sprintf("%s\n%s", system, prompt),
 		chains.WithTemperature(float64(0)),
 	)
+
+	// If the agent framework failed to parse the output, it might be due to markdown wrapping
+	// Try to extract and clean the JSON from the error message
+	if err != nil && strings.Contains(err.Error(), "unable to parse agent output") {
+		// Extract everything after "unable to parse agent output: "
+		if parts := strings.SplitN(err.Error(), "unable to parse agent output: ", 2); len(parts) == 2 {
+			cleaned := parts[1]
+			// Strip markdown code blocks
+			cleaned = strings.TrimSpace(cleaned)
+			cleaned = strings.TrimPrefix(cleaned, "```json")
+			cleaned = strings.TrimPrefix(cleaned, "```yaml")
+			cleaned = strings.TrimPrefix(cleaned, "```")
+			cleaned = strings.TrimSuffix(cleaned, "```")
+			cleaned = strings.TrimSpace(cleaned)
+
+			// Return the cleaned output without error
+			return cleaned, nil
+		}
+	}
+
+	return resp, err
 }
 
 func (a *agent) tools(ctx context.Context) []tools.Tool {
