@@ -229,18 +229,43 @@ func ComposedFromYAML(y string) (map[string]*fnv1.Resource, error) {
 	return out, nil
 }
 
+// stripMarkdownCodeBlocks removes markdown code block syntax from the input string.
+// LLMs sometimes wrap JSON/YAML output in markdown code blocks which breaks parsing.
+func stripMarkdownCodeBlocks(s string) string {
+	s = strings.TrimSpace(s)
+	s = strings.TrimPrefix(s, "```json")
+	s = strings.TrimPrefix(s, "```yaml")
+	s = strings.TrimPrefix(s, "```")
+	s = strings.TrimSuffix(s, "```")
+	return strings.TrimSpace(s)
+}
+
+// extractJSONFromAgentError attempts to extract JSON from langchaingo agent parsing errors.
+// When the agent framework fails to parse output, it returns an error containing the raw output.
+// This function extracts and cleans that output for a second parsing attempt.
+// Returns the extracted content and true if extraction succeeded, empty string and false otherwise.
+func extractJSONFromAgentError(err error) (string, bool) {
+	if err == nil {
+		return "", false
+	}
+	if !strings.Contains(err.Error(), "unable to parse agent output") {
+		return "", false
+	}
+	parts := strings.SplitN(err.Error(), "unable to parse agent output: ", 2)
+	if len(parts) != 2 {
+		return "", false
+	}
+	cleaned := stripMarkdownCodeBlocks(parts[1])
+	return cleaned, true
+}
+
 // resourceFrom produces a map of resource name to resources derived from the
 // given string. If the string is neither JSON nor YAML, an error is returned.
 func (f *Function) resourceFrom(i string) (map[string]*fnv1.Resource, error) {
 	out := make(map[string]*fnv1.Resource)
 
-	// Strip markdown code blocks if present (LLMs sometimes wrap output in markdown)
-	i = strings.TrimSpace(i)
-	i = strings.TrimPrefix(i, "```json")
-	i = strings.TrimPrefix(i, "```yaml")
-	i = strings.TrimPrefix(i, "```")
-	i = strings.TrimSuffix(i, "```")
-	i = strings.TrimSpace(i)
+	// Strip markdown code blocks if present
+	i = stripMarkdownCodeBlocks(i)
 
 	b := []byte(i)
 
@@ -456,23 +481,9 @@ func (a *agent) Invoke(ctx context.Context, key, system, prompt, inputModel stri
 		chains.WithTemperature(float64(0)),
 	)
 
-	// If the agent framework failed to parse the output, it might be due to markdown wrapping
-	// Try to extract and clean the JSON from the error message
-	if err != nil && strings.Contains(err.Error(), "unable to parse agent output") {
-		// Extract everything after "unable to parse agent output: "
-		if parts := strings.SplitN(err.Error(), "unable to parse agent output: ", 2); len(parts) == 2 {
-			cleaned := parts[1]
-			// Strip markdown code blocks
-			cleaned = strings.TrimSpace(cleaned)
-			cleaned = strings.TrimPrefix(cleaned, "```json")
-			cleaned = strings.TrimPrefix(cleaned, "```yaml")
-			cleaned = strings.TrimPrefix(cleaned, "```")
-			cleaned = strings.TrimSuffix(cleaned, "```")
-			cleaned = strings.TrimSpace(cleaned)
-
-			// Return the cleaned output without error
-			return cleaned, nil
-		}
+	// If the agent framework failed to parse the output, try to extract the JSON from the error
+	if extracted, ok := extractJSONFromAgentError(err); ok {
+		return extracted, nil
 	}
 
 	return resp, err
