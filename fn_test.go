@@ -286,6 +286,7 @@ func TestResourceFrom(t *testing.T) {
 	}
 	type want struct {
 		resource map[string]*fnv1.Resource
+		cleaned  string
 		err      error
 	}
 
@@ -366,6 +367,7 @@ func TestResourceFrom(t *testing.T) {
 						},
 					},
 				},
+				cleaned: "{\"metadata\": {\"name\": \"test\"}}",
 			},
 		},
 		"YAMLWithMarkdownCodeBlock": {
@@ -391,6 +393,7 @@ func TestResourceFrom(t *testing.T) {
 						},
 					},
 				},
+				cleaned: "metadata:\n  name: test",
 			},
 		},
 		"GenericMarkdownCodeBlock": {
@@ -416,6 +419,7 @@ func TestResourceFrom(t *testing.T) {
 						},
 					},
 				},
+				cleaned: "{\"metadata\": {\"name\": \"test\"}}",
 			},
 		},
 		"MarkdownWithWhitespace": {
@@ -441,6 +445,7 @@ func TestResourceFrom(t *testing.T) {
 						},
 					},
 				},
+				cleaned: "{\"metadata\": {\"name\": \"test\"}}",
 			},
 		},
 	}
@@ -448,14 +453,21 @@ func TestResourceFrom(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			f := &Function{log: logging.NewNopLogger()}
-			got, err := f.resourceFrom(tc.args.resp)
+			got, cleaned, err := f.resourceFrom(tc.args.resp)
 
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
-				t.Errorf("%s\nf.RunFunction(...): -want err, +got err:\n%s", tc.reason, diff)
+				t.Errorf("%s\nf.resourceFrom(...): -want err, +got err:\n%s", tc.reason, diff)
 			}
 
 			if diff := cmp.Diff(tc.want.resource, got, protocmp.Transform()); diff != "" {
-				t.Errorf("%s\nf.RunFunction(...): -want rsp, +got rsp:\n%s", tc.reason, diff)
+				t.Errorf("%s\nf.resourceFrom(...): -want resource, +got resource:\n%s", tc.reason, diff)
+			}
+
+			// Only check cleaned string if test case specifies an expected value
+			if tc.want.cleaned != "" {
+				if cleaned != tc.want.cleaned {
+					t.Errorf("%s\nf.resourceFrom(...): -want cleaned, +got cleaned:\nwant: %q\ngot:  %q", tc.reason, tc.want.cleaned, cleaned)
+				}
 			}
 		})
 	}

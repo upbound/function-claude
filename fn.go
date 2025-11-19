@@ -261,13 +261,14 @@ func extractJSONFromAgentError(err error) (string, bool) {
 
 // resourceFrom produces a map of resource name to resources derived from the
 // given string. If the string is neither JSON nor YAML, an error is returned.
-func (f *Function) resourceFrom(i string) (map[string]*fnv1.Resource, error) {
+// Returns the parsed resources, the cleaned input string (with markdown stripped), and any error.
+func (f *Function) resourceFrom(i string) (map[string]*fnv1.Resource, string, error) {
 	out := make(map[string]*fnv1.Resource)
 
 	// Strip markdown code blocks if present
-	i = stripMarkdownCodeBlocks(i)
+	cleaned := stripMarkdownCodeBlocks(i)
 
-	b := []byte(i)
+	b := []byte(cleaned)
 
 	// Is i YAML?
 	jb, err := yaml.YAMLToJSON(b)
@@ -279,13 +280,13 @@ func (f *Function) resourceFrom(i string) (map[string]*fnv1.Resource, error) {
 
 	s := &structpb.Struct{}
 	if err := protojson.Unmarshal(jb, s); err != nil {
-		return nil, errors.Wrap(err, "cannot parse JSON")
+		return nil, cleaned, errors.Wrap(err, "cannot parse JSON")
 	}
 
 	name := gjson.GetBytes(jb, "metadata.name").String()
 	out[name] = &fnv1.Resource{Resource: s}
 
-	return out, nil
+	return out, cleaned, nil
 }
 
 // attempts to identify if the function is operating within a composition
@@ -417,14 +418,15 @@ func (f *Function) operationPipeline(ctx context.Context, log logging.Logger, d 
 		return d.rsp, err
 	}
 
-	desired, err := f.resourceFrom(resp)
+	desired, cleanResp, err := f.resourceFrom(resp)
 	if err != nil {
 		// we didn't get a JSON based response from claude
 		log.Debug("failed to get a JSON response back, no desired resources will be sent back to crossplane")
 	}
 
 	response.ConditionTrue(d.rsp, "FunctionSuccess", "Success").TargetCompositeAndClaim()
-	response.Normal(d.rsp, resp)
+	// Use cleaned response for event message (markdown stripped, works in both success and error cases)
+	response.Normal(d.rsp, cleanResp)
 
 	d.rsp.Desired.Resources = desired
 	return d.rsp, nil
