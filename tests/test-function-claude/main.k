@@ -81,7 +81,8 @@ _items = [
                     }
                     spec: {
                       ports: [{
-                        port: 80
+                        port: 8080
+                        protocol: "TCP"
                         targetPort: 8080
                       }]
                       selector: {
