@@ -198,7 +198,6 @@ jobs:
         with:
           skip-login: true
           channel: main
-          version: v0.39.0-384.g0a0c8634 # we need compositionTests with functionCredentialsPath
       - name: Update package version in upbound.yaml
         run: | 
           sed -i "s/version: v0.0.1/version: ${{ env.XPKG_VERSION }}/" upbound.yaml
