@@ -418,6 +418,7 @@ type agent struct {
 func (a *agent) Invoke(ctx context.Context, key, system, prompt string) (string, error) {
 	model, err := anthropicllm.New(
 		anthropicllm.WithToken(key),
+		anthropicllm.WithModel("claude-sonnet-4-20250514"),
 	)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to build model")
