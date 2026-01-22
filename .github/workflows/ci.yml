@@ -14,7 +14,7 @@ on:
 
 env:
   # Common versions
-  GO_VERSION: '1.24.4'
+  GO_VERSION: '1.24.11'
   GOLANGCI_VERSION: 'v1.64.2'
   DOCKER_BUILDX_VERSION: 'v0.24.0'
 
@@ -197,8 +197,7 @@ jobs:
         uses: upbound/action-up@v1
         with:
           skip-login: true
-          channel: main
-          version: v0.39.0-384.g0a0c8634 # we need compositionTests with functionCredentialsPath
+
       - name: Update package version in upbound.yaml
         run: | 
           sed -i "s/version: v0.0.1/version: ${{ env.XPKG_VERSION }}/" upbound.yaml
