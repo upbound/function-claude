@@ -1,6 +1,6 @@
 module github.com/upbound/function-claude
 
-go 1.24.11
+go 1.24.12
 
 require (
 	github.com/alecthomas/kong v0.9.0
