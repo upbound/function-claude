@@ -1,11 +1,6 @@
 run:
   timeout: 10m
 
-output:
-  # Available formats: colored-line-number, line-number, json, tab, checkstyle, code-climate
-  # Default is colored-line-number
-  formats: colored-line-number
-
 linters-settings:
   errcheck:
     # report about not checking of errors in type assetions: `a := b.(MyStruct)`;
