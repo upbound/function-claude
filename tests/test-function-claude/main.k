@@ -25,13 +25,14 @@ _items = [
                       labels: {
                         "crossplane.io/composite": "example-db"
                       }
+                      name: "example-db-5add7b0f9f83"
                       ownerReferences: [{
                         apiVersion: "example.crossplane.io/v1"
                         blockOwnerDeletion: True
                         controller: True
                         kind: "App"
                         name: "example-db"
-                        uid: ""
+                        uid: "ae088a8d-c2e5-522e-ae5c-d068332dc05d"
                       }]
                     }
                     spec: {
@@ -50,8 +51,10 @@ _items = [
                         spec: {
                           containers: [{
                             image: "upbound/example:v1"
+                            name: "app"
                             ports: [{
                               containerPort: 8080
+                              protocol: "TCP"
                             }]
                           }]
                         }
@@ -70,13 +73,14 @@ _items = [
                       labels: {
                         "crossplane.io/composite": "example-db"
                       }
+                      name: "example-db-53b064d3c9b0"
                       ownerReferences: [{
                         apiVersion: "example.crossplane.io/v1"
                         blockOwnerDeletion: True
                         controller: True
                         kind: "App"
                         name: "example-db"
-                        uid: ""
+                        uid: "ae088a8d-c2e5-522e-ae5c-d068332dc05d"
                       }]
                     }
                     spec: {
